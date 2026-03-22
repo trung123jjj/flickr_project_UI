@@ -31,7 +31,7 @@ class IntroScreen extends StatelessWidget {
 
                   // Title
                   const Text(
-                    'Welcome to Nikki-Ani',
+                    'Your Cinema, Your Opinion',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 28,
@@ -43,7 +43,7 @@ class IntroScreen extends StatelessWidget {
                   // Subtitle
                   const SizedBox(height: 8),
                   const Text(
-                    'Rate by your own way',
+                    'Rate films. Share your take. Inspire others.',
                     style: TextStyle(
                       color: Color(0xFFB8B8B8),
                       fontSize: 15,
