@@ -25,7 +25,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: const Color(0xFF0D1B2A), // dark blue
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -124,17 +124,11 @@ class _SignupScreenState extends State<SignupScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text(
                     'Sign Up',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -152,7 +146,7 @@ class _SignupScreenState extends State<SignupScreen> {
     required String iconPath,
   }) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(24, 16, 24, 4),
+      margin: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
@@ -171,16 +165,19 @@ class _SignupScreenState extends State<SignupScreen> {
             ),
           ),
           // TextField căn giữa
-          TextField(
-            controller: controller,
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(color: Colors.white70),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: const TextStyle(color: Colors.white70),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
             ),
           ),
         ],
@@ -214,7 +211,24 @@ class _SignupScreenState extends State<SignupScreen> {
               child: Image.asset(iconPath, width: 24, height: 24),
             ),
           ),
-          // Icon ẩn/hiện bên phải
+          // TextField căn giữa
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: TextField(
+              controller: controller,
+              obscureText: obscureText,
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: const TextStyle(color: Colors.white70),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+          // Icon ẩn/hiện bên phải (Nằm cuối Stack để ở trên cùng)
           Align(
             alignment: Alignment.centerRight,
             child: IconButton(
@@ -223,20 +237,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 color: Colors.white70,
               ),
               onPressed: onToggle,
-            ),
-          ),
-          // TextField căn giữa
-          TextField(
-            controller: controller,
-            obscureText: obscureText,
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(color: Colors.white70),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
             ),
           ),
         ],

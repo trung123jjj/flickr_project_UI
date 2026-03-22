@@ -22,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: const Color(0xFF0D1B2A), // dark blue
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -93,9 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
-                  onTap: () {
-                    // TODO: xử lý quên mật khẩu
-                  },
+                  onTap: () {},
                   child: const Text(
                     'Forget Your Password?',
                     style: TextStyle(color: Colors.white, fontSize: 16),
@@ -119,23 +117,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: xử lý đăng nhập
-                  },
+                  onPressed: () {},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text(
                     'Log in',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -147,25 +137,14 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    "Don't have an account yet?",
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
+                  const Text("Don't have an account yet?", style: TextStyle(color: Colors.white, fontSize: 16)),
                   TextButton(
                     onPressed: () => Navigator.pushNamed(context, '/signup'),
-                    child: const Text(
-                      'Sign up',
-                      style: TextStyle(
-                        color: Color(0xFF87CEEB),
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: const Text('Sign up', style: TextStyle(color: Color(0xFF87CEEB), fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
             ),
-
           ],
         ),
       ),
@@ -240,6 +219,23 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Image.asset(iconPath, width: 24, height: 24),
             ),
           ),
+          // TextField căn giữa, chừa khoảng trống 2 bên cho icon
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: TextField(
+              controller: controller,
+              obscureText: obscureText,
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: const TextStyle(color: Colors.white70),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
           // Icon ẩn/hiện bên phải
           Align(
             alignment: Alignment.centerRight,
@@ -249,20 +245,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 color: Colors.white70,
               ),
               onPressed: onToggle,
-            ),
-          ),
-          // TextField căn giữa
-          TextField(
-            controller: controller,
-            obscureText: obscureText,
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(color: Colors.white70),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
             ),
           ),
         ],
