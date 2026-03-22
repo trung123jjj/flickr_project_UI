@@ -72,7 +72,7 @@ class IntroScreen extends StatelessWidget {
                       child: ElevatedButton(
                         onPressed: () {
                           // TODO: điều hướng sang Login page
-                          // Navigator.pushNamed(context, '/login');
+                          Navigator.pushNamed(context, '/login');
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
