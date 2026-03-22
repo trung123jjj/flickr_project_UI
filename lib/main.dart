@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/intro_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/signup_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,9 +16,16 @@ class MyApp extends StatelessWidget {
       title: 'Flickr App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0D1B2A)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF0D1B2A),
+        ),
       ),
-      home: const IntroScreen(), // mở IntroScreen đầu tiên
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const IntroScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/signup': (context) => const SignupScreen(),
+      },
     );
   }
 }
