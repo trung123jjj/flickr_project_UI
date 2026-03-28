@@ -31,7 +31,7 @@ class IntroScreen extends StatelessWidget {
 
                   // Title
                   const Text(
-                    'Your Cinema, Your Opinion',
+                    'Welcome to Flickr',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 28,
@@ -43,7 +43,7 @@ class IntroScreen extends StatelessWidget {
                   // Subtitle
                   const SizedBox(height: 8),
                   const Text(
-                    'Rate films. Share your take. Inspire others.',
+                    'Rate by your own way',
                     style: TextStyle(
                       color: Color(0xFFB8B8B8),
                       fontSize: 15,
@@ -71,8 +71,8 @@ class IntroScreen extends StatelessWidget {
                       ),
                       child: ElevatedButton(
                         onPressed: () {
-                          // TODO: điều hướng sang Login page
-                          Navigator.pushNamed(context, '/login');
+                          // Sử dụng pushReplacementNamed để thay thế màn hình Intro, tránh nháy sáng
+                          Navigator.pushReplacementNamed(context, '/login');
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,

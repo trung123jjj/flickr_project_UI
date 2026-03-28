@@ -28,47 +28,65 @@ class _SignupScreenState extends State<SignupScreen> {
       backgroundColor: const Color(0xFF0D1B2A), // dark blue
       body: SingleChildScrollView(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-
-            // 2 icon hàng ngang phía trên
+            // Logo nhân vật nằm cạnh nhau
             Container(
-              margin: const EdgeInsets.only(top: 90),
+              margin: const EdgeInsets.only(top: 80),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset('assets/images/signup_icon_1.png', width: 80, height: 80),
+                  Image.asset(
+                    'assets/images/signup_icon_1.png',
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.contain,
+                  ),
                   const SizedBox(width: 20),
-                  Image.asset('assets/images/signup_icon_2.png', width: 80, height: 80),
+                  Image.asset(
+                    'assets/images/signup_icon_2.png',
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.contain,
+                  ),
                 ],
               ),
             ),
 
             // Title tiếng Nhật
             const Padding(
-              padding: EdgeInsets.only(top: 7, left: 32, right: 32),
-              child: Text(
-                'ようこそ！',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 50,
-                  fontWeight: FontWeight.bold,
+              padding: EdgeInsets.only(top: 20, left: 80, right: 32),
+              child: SizedBox(
+                width: double.infinity,
+                child: Text(
+                  'ようこそ！',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 50,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
               ),
             ),
 
             // Subtitle
             const Padding(
-              padding: EdgeInsets.only(top: 3, left: 32, right: 32),
-              child: Text(
-                "Let's get you started",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
+              padding: EdgeInsets.only(top: 8, left: 32, right: 32),
+              child: SizedBox(
+                width: double.infinity,
+                child: Text(
+                  "Let's get you started",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 15,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
               ),
             ),
+
+            const SizedBox(height: 20),
 
             // Username field
             _buildInputField(
@@ -133,7 +151,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
             ),
-
           ],
         ),
       ),
@@ -146,7 +163,8 @@ class _SignupScreenState extends State<SignupScreen> {
     required String iconPath,
   }) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      height: 60,
+      margin: const EdgeInsets.fromLTRB(24, 14, 24, 4),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
@@ -156,7 +174,6 @@ class _SignupScreenState extends State<SignupScreen> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Icon bên trái
           Align(
             alignment: Alignment.centerLeft,
             child: Padding(
@@ -164,18 +181,17 @@ class _SignupScreenState extends State<SignupScreen> {
               child: Image.asset(iconPath, width: 24, height: 24),
             ),
           ),
-          // TextField căn giữa
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: TextField(
               controller: controller,
               style: const TextStyle(color: Colors.white, fontSize: 18),
               textAlign: TextAlign.center,
-              maxLines: 1,
               decoration: InputDecoration(
                 hintText: hint,
                 hintStyle: const TextStyle(color: Colors.white70),
                 border: InputBorder.none,
+                isDense: true,
                 contentPadding: EdgeInsets.zero,
               ),
             ),
@@ -193,7 +209,8 @@ class _SignupScreenState extends State<SignupScreen> {
     required VoidCallback onToggle,
   }) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      height: 60,
+      margin: const EdgeInsets.fromLTRB(24, 14, 24, 4),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
@@ -203,7 +220,6 @@ class _SignupScreenState extends State<SignupScreen> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Icon bên trái
           Align(
             alignment: Alignment.centerLeft,
             child: Padding(
@@ -211,24 +227,22 @@ class _SignupScreenState extends State<SignupScreen> {
               child: Image.asset(iconPath, width: 24, height: 24),
             ),
           ),
-          // TextField căn giữa
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
+            padding: const EdgeInsets.symmetric(horizontal: 48),
             child: TextField(
               controller: controller,
               obscureText: obscureText,
               style: const TextStyle(color: Colors.white, fontSize: 18),
               textAlign: TextAlign.center,
-              maxLines: 1,
               decoration: InputDecoration(
                 hintText: hint,
                 hintStyle: const TextStyle(color: Colors.white70),
                 border: InputBorder.none,
+                isDense: true,
                 contentPadding: EdgeInsets.zero,
               ),
             ),
           ),
-          // Icon ẩn/hiện bên phải (Nằm cuối Stack để ở trên cùng)
           Align(
             alignment: Alignment.centerRight,
             child: IconButton(

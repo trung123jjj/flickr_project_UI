@@ -23,13 +23,11 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
-      initialRoute: '/',
+      // Dùng home thay cho initialRoute để tránh nháy sáng khi khởi động
+      home: const IntroScreen(),
       onGenerateRoute: (settings) {
         Widget page;
         switch (settings.name) {
-          case '/':
-            page = const IntroScreen();
-            break;
           case '/login':
             page = const LoginScreen();
             break;
@@ -37,26 +35,29 @@ class MyApp extends StatelessWidget {
             page = const SignupScreen();
             break;
           default:
-            page = const IntroScreen();
+            return null;
         }
 
         return PageRouteBuilder(
           settings: settings,
           pageBuilder: (context, animation, secondaryAnimation) => page,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(1.0, 0.0); // Bắt đầu từ bên phải
-            const end = Offset.zero;      // Kết thúc tại vị trí chính giữa
-            const curve = Curves.easeInOut;
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOutQuart;
 
             var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
             var offsetAnimation = animation.drive(tween);
 
-            return SlideTransition(
-              position: offsetAnimation,
-              child: child,
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: offsetAnimation,
+                child: child,
+              ),
             );
           },
-          transitionDuration: const Duration(milliseconds: 300),
+          transitionDuration: const Duration(milliseconds: 400),
         );
       },
     );
