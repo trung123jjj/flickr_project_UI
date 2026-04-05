@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'screens/intro_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
+import 'screens/home_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -33,6 +34,9 @@ class MyApp extends StatelessWidget {
             break;
           case '/signup':
             page = const SignupScreen();
+            break;
+          case '/home':
+            page = const HomeScreen();
             break;
           default:
             return null;
