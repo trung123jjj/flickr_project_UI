@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -72,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // Subtitle
               const Padding(
-                padding: EdgeInsets.only(top: 8, left: 32, right: 32),
+                padding: EdgeInsets.only(top: 8, left: 32, right: 32,bottom: 10),
                 child: Text(
                   "It's nice to see you back",
                   style: TextStyle(
@@ -107,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // Forget password
               Padding(
-                padding: const EdgeInsets.only(top: 16, right: 33),
+                padding: const EdgeInsets.only(top: 0, right: 33),
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
@@ -135,8 +136,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: xử lý đăng nhập
+                    onPressed: () async {
+                      final username = _usernameController.text.trim();
+                      final password = _passwordController.text.trim();
+
+                      // Kiểm tra không được để trống
+                      if (username.isEmpty || password.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin')),
+                        );
+                        return;
+                      }
+
+                      // Lưu username vào SharedPreferences
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString('username', username);
+
+                      // Chuyển sang Home page
+                      Navigator.pushReplacementNamed(context, '/home');
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,

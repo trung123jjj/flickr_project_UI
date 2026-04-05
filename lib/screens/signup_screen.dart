@@ -72,7 +72,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
             // Subtitle
             const Padding(
-              padding: EdgeInsets.only(top: 8, left: 32, right: 32),
+              padding: EdgeInsets.only(top: 8, left: 32, right: 32, bottom: 10),
               child: SizedBox(
                 width: double.infinity,
                 child: Text(
@@ -164,7 +164,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }) {
     return Container(
       height: 60,
-      margin: const EdgeInsets.fromLTRB(24, 14, 24, 4),
+      margin: const EdgeInsets.fromLTRB(24, 15, 24, 4),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
