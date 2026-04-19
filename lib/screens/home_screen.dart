@@ -45,14 +45,9 @@ class HomeScreenState extends State<HomeScreen> {
     final nowPlaying = await TmdbService.getNowPlayingMovies();
     final genresList = await TmdbService.getGenres();
     
-    // Tập hợp các URL ảnh đã được sử dụng để đảm bảo tính duy nhất
     final usedBackdrops = <String>{};
-
     for (var genre in genresList) {
-      // Lấy danh sách các ảnh nền tiềm năng cho thể loại này
       final potentialBackdrops = await TmdbService.getBackdropListForGenre(genre.id);
-      
-      // Tìm ảnh đầu tiên trong danh sách mà chưa được sử dụng
       String? chosenBackdrop;
       for (var url in potentialBackdrops) {
         if (!usedBackdrops.contains(url)) {
@@ -61,8 +56,6 @@ class HomeScreenState extends State<HomeScreen> {
           break;
         }
       }
-      
-      // Nếu tất cả đều trùng (trường hợp hiếm), lấy cái đầu tiên
       genre.backdropUrl = chosenBackdrop ?? (potentialBackdrops.isNotEmpty ? potentialBackdrops[0] : null);
     }
 
@@ -174,27 +167,33 @@ class HomeScreenState extends State<HomeScreen> {
         itemCount: movies.length > 5 ? 5 : movies.length,
         itemBuilder: (context, index) {
           final movie = movies[index];
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CachedNetworkImage(imageUrl: movie.posterUrl, fit: BoxFit.cover),
-                  Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.8)]))),
-                  Positioned(
-                    bottom: 25, left: 20, right: 20,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(movie.title, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                        Row(children: [const Icon(Icons.star, color: Colors.amber, size: 20), const SizedBox(width: 6), Text(movie.voteAverage.toStringAsFixed(1), style: const TextStyle(color: Colors.amber, fontSize: 18))]),
-                      ],
-                    ),
-                  )
-                ],
+          return GestureDetector(
+            onTap: () {
+              // Chuyển sang trang Detail và truyền object movie hiện tại
+              Navigator.pushNamed(context, '/details', arguments: movie);
+            },
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CachedNetworkImage(imageUrl: movie.posterUrl, fit: BoxFit.cover),
+                    Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.8)]))),
+                    Positioned(
+                      bottom: 25, left: 20, right: 20,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(movie.title, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                          Row(children: [const Icon(Icons.star, color: Colors.amber, size: 20), const SizedBox(width: 6), Text(movie.voteAverage.toStringAsFixed(1), style: const TextStyle(color: Colors.amber, fontSize: 18))]),
+                        ],
+                      ),
+                    )
+                  ],
+                ),
               ),
             ),
           );
@@ -212,16 +211,22 @@ class HomeScreenState extends State<HomeScreen> {
         itemCount: movies.length,
         itemBuilder: (context, index) {
           final movie = movies[index];
-          return Container(
-            width: 140,
-            margin: const EdgeInsets.only(right: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(15), child: CachedNetworkImage(imageUrl: movie.posterUrl, fit: BoxFit.cover))),
-                Padding(padding: const EdgeInsets.only(top: 8), child: Text(movie.title, style: const TextStyle(color: Colors.white, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                Row(children: [const Icon(Icons.star, color: Color(0xFFFFAB40), size: 14), const SizedBox(width: 4), Text(movie.voteAverage.toStringAsFixed(1), style: const TextStyle(color: Color(0xFFFFAB40), fontSize: 13))]),
-              ],
+          return GestureDetector(
+            onTap: () {
+              // Chuyển sang trang Detail và truyền object movie hiện tại
+              Navigator.pushNamed(context, '/details', arguments: movie);
+            },
+            child: Container(
+              width: 140,
+              margin: const EdgeInsets.only(right: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(15), child: CachedNetworkImage(imageUrl: movie.posterUrl, fit: BoxFit.cover))),
+                  Padding(padding: const EdgeInsets.only(top: 8), child: Text(movie.title, style: const TextStyle(color: Colors.white, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  Row(children: [const Icon(Icons.star, color: Color(0xFFFFAB40), size: 14), const SizedBox(width: 4), Text(movie.voteAverage.toStringAsFixed(1), style: const TextStyle(color: Color(0xFFFFAB40), fontSize: 13))]),
+                ],
+              ),
             ),
           );
         },
