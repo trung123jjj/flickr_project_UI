@@ -167,16 +167,13 @@ class HomeScreenState extends State<HomeScreen> {
         itemCount: movies.length > 5 ? 5 : movies.length,
         itemBuilder: (context, index) {
           final movie = movies[index];
-          return GestureDetector(
-            onTap: () {
-              // Chuyển sang trang Detail và truyền object movie hiện tại
-              Navigator.pushNamed(context, '/details', arguments: movie);
-            },
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/details', arguments: movie),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -188,7 +185,14 @@ class HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(movie.title, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                          Row(children: [const Icon(Icons.star, color: Colors.amber, size: 20), const SizedBox(width: 6), Text(movie.voteAverage.toStringAsFixed(1), style: const TextStyle(color: Colors.amber, fontSize: 18))]),
+                          Row(children: [
+                            const Icon(Icons.star, color: Colors.amber, size: 20),
+                            const SizedBox(width: 6),
+                            Text(
+                              movie.voteAverage.toStringAsFixed(1),
+                              style: const TextStyle(color: Colors.amber, fontSize: 18)
+                            )
+                          ]),
                         ],
                       ),
                     )
@@ -212,10 +216,7 @@ class HomeScreenState extends State<HomeScreen> {
         itemBuilder: (context, index) {
           final movie = movies[index];
           return GestureDetector(
-            onTap: () {
-              // Chuyển sang trang Detail và truyền object movie hiện tại
-              Navigator.pushNamed(context, '/details', arguments: movie);
-            },
+             onTap: () => Navigator.pushNamed(context, '/details', arguments: movie),
             child: Container(
               width: 140,
               margin: const EdgeInsets.only(right: 16),
@@ -224,7 +225,14 @@ class HomeScreenState extends State<HomeScreen> {
                 children: [
                   Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(15), child: CachedNetworkImage(imageUrl: movie.posterUrl, fit: BoxFit.cover))),
                   Padding(padding: const EdgeInsets.only(top: 8), child: Text(movie.title, style: const TextStyle(color: Colors.white, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                  Row(children: [const Icon(Icons.star, color: Color(0xFFFFAB40), size: 14), const SizedBox(width: 4), Text(movie.voteAverage.toStringAsFixed(1), style: const TextStyle(color: Color(0xFFFFAB40), fontSize: 13))]),
+                  Row(children: [
+                    const Icon(Icons.star, color: Color(0xFFFFAB40), size: 14), 
+                    const SizedBox(width: 4), 
+                    Text(
+                      movie.voteAverage.toStringAsFixed(1),
+                      style: const TextStyle(color: Color(0xFFFFAB40), fontSize: 13)
+                    )
+                  ]),
                 ],
               ),
             ),

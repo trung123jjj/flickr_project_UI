@@ -4,6 +4,7 @@ import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/details_screen.dart';
+import 'screens/comments_screen.dart';
 import 'models/movie.dart';
 import 'services/tmdb_service.dart';
 
@@ -34,13 +35,16 @@ class MyApp extends StatelessWidget {
         ),
       ),
       // Đặt lại trang chủ là IntroScreen
-      home: const IntroScreen(),
+      home: const HomeScreen(),
       onGenerateRoute: (settings) {
         Widget page;
         
         if (settings.name == '/details') {
           final movie = settings.arguments as Movie;
           page = DetailsScreen(movie: movie);
+        } else if (settings.name == '/comments') {
+          final movie = settings.arguments as Movie;
+          page = CommentsScreen(movie: movie);
         } else {
           switch (settings.name) {
             case '/login':
