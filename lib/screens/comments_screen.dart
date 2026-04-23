@@ -163,26 +163,39 @@ class _CommentsScreenState extends State<CommentsScreen> {
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                comment.username,
-                style: const TextStyle(color: Color(0xFF87CEEB), fontWeight: FontWeight.bold),
-              ),
-              Text(
-                "${comment.timestamp.hour}:${comment.timestamp.minute.toString().padLeft(2, '0')}",
-                style: const TextStyle(color: Colors.white24, fontSize: 12),
-              ),
-            ],
+          // Avatar tròn bên cạnh tên
+          const CircleAvatar(
+            radius: 18,
+            backgroundImage: AssetImage('assets/images/profile_pic.png'),
           ),
-          const SizedBox(height: 8),
-          Text(
-            comment.content,
-            style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.4),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      comment.username,
+                      style: const TextStyle(color: Color(0xFF87CEEB), fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "${comment.timestamp.hour}:${comment.timestamp.minute.toString().padLeft(2, '0')}",
+                      style: const TextStyle(color: Colors.white24, fontSize: 12),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  comment.content,
+                  style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.4),
+                ),
+              ],
+            ),
           ),
         ],
       ),
