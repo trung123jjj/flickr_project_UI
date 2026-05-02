@@ -5,6 +5,7 @@ import '../models/movie.dart';
 import '../models/genre.dart';
 import '../services/tmdb_service.dart';
 import '../services/auth_service.dart';
+import '../services/backend_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,7 @@ class HomeScreenState extends State<HomeScreen> {
   List<Movie> _popularMovies = [];
   List<Movie> _nowPlayingMovies = [];
   List<Genre> _genres = [];
+  Map<int, dynamic> _movieRatings = {};
   bool _isLoading = true;
   final PageController _pageController = PageController(viewportFraction: 0.9);
 
@@ -45,7 +47,7 @@ class HomeScreenState extends State<HomeScreen> {
     final popular = await TmdbService.getPopularMovies();
     final nowPlaying = await TmdbService.getNowPlayingMovies();
     final genresList = await TmdbService.getGenres();
-    
+
     final usedBackdrops = <String>{};
     for (var genre in genresList) {
       final potentialBackdrops = await TmdbService.getBackdropListForGenre(genre.id);
@@ -60,10 +62,41 @@ class HomeScreenState extends State<HomeScreen> {
       genre.backdropUrl = chosenBackdrop ?? (potentialBackdrops.isNotEmpty ? potentialBackdrops[0] : null);
     }
 
+    // Lấy tất cả movieIds để fetch rating 1 lần
+    final allMovieIds = <int>{};
+    for (var m in popular) { allMovieIds.add(m.id); }
+    for (var m in nowPlaying) { allMovieIds.add(m.id); }
+
+    Map<int, dynamic> ratings = {};
+    if (allMovieIds.isNotEmpty) {
+      final result = await BackendService.getBatchMovieRatings(allMovieIds.toList());
+      if (result['success'] == true) {
+        ratings = Map<int, dynamic>.from(result['data'] ?? {});
+      }
+    }
+
+    // Cập nhật rating cho từng phim
+    Movie updateMovieRating(Movie movie, Map<int, dynamic> ratings) {
+      final r = ratings[movie.id];
+      return Movie(
+        id: movie.id,
+        title: movie.title,
+        overview: movie.overview,
+        posterPath: movie.posterPath,
+        backdropPath: movie.backdropPath,
+        voteAverage: movie.voteAverage,
+        releaseDate: movie.releaseDate,
+        genreIds: movie.genreIds,
+        averageRating: r != null ? (r['averageScore'] ?? 0).toDouble() : null,
+        totalRatings: r != null ? r['totalRatings'] ?? 0 : 0,
+      );
+    }
+
     setState(() {
-      _popularMovies = popular;
-      _nowPlayingMovies = nowPlaying;
+      _popularMovies = popular.map((m) => updateMovieRating(m, ratings)).toList();
+      _nowPlayingMovies = nowPlaying.map((m) => updateMovieRating(m, ratings)).toList();
       _genres = genresList;
+      _movieRatings = ratings;
       _isLoading = false;
     });
   }
@@ -189,7 +222,9 @@ class HomeScreenState extends State<HomeScreen> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: GestureDetector(
-                onTap: () => Navigator.pushNamed(context, '/details', arguments: movie),
+                onTap: () => Navigator.pushNamed(context, '/details', arguments: movie).then((_) {
+                  if (mounted) _loadAllData();
+                }),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -199,16 +234,25 @@ class HomeScreenState extends State<HomeScreen> {
                       bottom: 25, left: 20, right: 20,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(movie.title, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                          Row(children: [
-                            const Icon(Icons.star, color: Colors.amber, size: 20),
-                            const SizedBox(width: 6),
+                      children: [
+                        Text(movie.title, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                        Row(children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 20),
+                          const SizedBox(width: 6),
+                          Text(
+                            movie.averageRating != null && movie.averageRating! > 0
+                                ? movie.averageRating!.toStringAsFixed(1)
+                                : '0.0',
+                            style: const TextStyle(color: Colors.amber, fontSize: 18)
+                          ),
+                          if (movie.totalRatings != null && movie.totalRatings! > 0) ...[
+                            const SizedBox(width: 4),
                             Text(
-                              movie.voteAverage.toStringAsFixed(1),
-                              style: const TextStyle(color: Colors.amber, fontSize: 18)
-                            )
-                          ]),
+                              '(${movie.totalRatings})',
+                              style: const TextStyle(color: Colors.white70, fontSize: 14)
+                            ),
+                          ],
+                        ]),
                         ],
                       ),
                     )
@@ -232,7 +276,9 @@ class HomeScreenState extends State<HomeScreen> {
         itemBuilder: (context, index) {
           final movie = movies[index];
           return GestureDetector(
-             onTap: () => Navigator.pushNamed(context, '/details', arguments: movie),
+             onTap: () => Navigator.pushNamed(context, '/details', arguments: movie).then((_) {
+               if (mounted) _loadAllData();
+             }),
             child: Container(
               width: 140,
               margin: const EdgeInsets.only(right: 16),
@@ -245,9 +291,18 @@ class HomeScreenState extends State<HomeScreen> {
                     const Icon(Icons.star, color: Color(0xFFFFAB40), size: 14), 
                     const SizedBox(width: 4), 
                     Text(
-                      movie.voteAverage.toStringAsFixed(1),
+                      movie.averageRating != null && movie.averageRating! > 0
+                          ? movie.averageRating!.toStringAsFixed(1)
+                          : '0.0',
                       style: const TextStyle(color: Color(0xFFFFAB40), fontSize: 13)
-                    )
+                    ),
+                    if (movie.totalRatings != null && movie.totalRatings! > 0) ...[
+                      const SizedBox(width: 2),
+                      Text(
+                        '(${movie.totalRatings})',
+                        style: const TextStyle(color: Colors.white70, fontSize: 11)
+                      ),
+                    ],
                   ]),
                 ],
               ),

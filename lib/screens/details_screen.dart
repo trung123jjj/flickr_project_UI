@@ -4,6 +4,7 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../models/movie.dart';
 import '../models/cast.dart';
 import '../services/tmdb_service.dart';
+import '../services/backend_service.dart';
 
 class DetailsScreen extends StatefulWidget {
   final Movie movie;
@@ -18,7 +19,12 @@ class _DetailsScreenState extends State<DetailsScreen> {
   bool _isExpanded = false;
   List<Cast> _cast = [];
   bool _isLoadingCast = true;
-  
+
+  double? _userRating;
+  double? _averageRating;
+  int _totalRatings = 0;
+  bool _isLoadingRating = true;
+
   YoutubePlayerController? _youtubeController;
   bool _isLoadingTrailer = true;
 
@@ -27,6 +33,87 @@ class _DetailsScreenState extends State<DetailsScreen> {
     super.initState();
     _loadCast();
     _loadTrailer();
+    _loadRating();
+  }
+
+  Future<void> _loadRating() async {
+    final result = await BackendService.getMovieRating(widget.movie.id);
+    if (mounted && result['success'] == true) {
+      final data = result['data'];
+      setState(() {
+        _averageRating = (data['averageScore'] ?? 0).toDouble();
+        _totalRatings = data['totalRatings'] ?? 0;
+        _userRating = data['userScore']?.toDouble();
+        _isLoadingRating = false;
+      });
+    } else {
+      setState(() => _isLoadingRating = false);
+    }
+  }
+
+  Future<void> _submitRating(double score) async {
+    final result = await BackendService.submitRating(
+      widget.movie.id,
+      score,
+      moviePoster: widget.movie.posterPath,
+    );
+    if (result['success'] == true && mounted) {
+      await _loadRating();
+      setState(() {
+        _userRating = score;
+      });
+    }
+  }
+
+  void _showRatingDialog() {
+    double tempRating = _userRating ?? 0;
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1B263B),
+          title: const Text('Rate this movie', style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  final star = index + 1;
+                  return IconButton(
+                    onPressed: () {
+                      setDialogState(() => tempRating = star.toDouble());
+                    },
+                    icon: Icon(
+                      star <= tempRating ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 36,
+                    ),
+                  );
+                }),
+              ),
+              Text('${tempRating.toInt()}/5', style: const TextStyle(color: Colors.white70)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+            ),
+            ElevatedButton(
+              onPressed: tempRating > 0
+                  ? () {
+                      Navigator.pop(context);
+                      _submitRating(tempRating);
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B00)),
+              child: const Text('Submit', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -181,10 +268,34 @@ class _DetailsScreenState extends State<DetailsScreen> {
                       Text(widget.movie.title, style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
                       Row(children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 22),
-                        const SizedBox(width: 6),
-                        Text(widget.movie.voteAverage.toStringAsFixed(1), style: const TextStyle(color: Colors.amber, fontSize: 20, fontWeight: FontWeight.bold)),
-                        const SizedBox(width: 24),
+                        GestureDetector(
+                          onTap: _showRatingDialog,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.star, color: Colors.amber, size: 22),
+                              const SizedBox(width: 6),
+                              _isLoadingRating
+                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber))
+                                  : Text(
+                                      _averageRating != null && _averageRating! > 0
+                                          ? _averageRating!.toStringAsFixed(1)
+                                          : '0.0',
+                                      style: const TextStyle(color: Colors.amber, fontSize: 20, fontWeight: FontWeight.bold),
+                                    ),
+                              if (_totalRatings > 0) ...[
+                                const SizedBox(width: 4),
+                                Text('($_totalRatings)', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        if (_userRating != null) ...[
+                          const Icon(Icons.person, color: Color(0xFF87CEEB), size: 18),
+                          const SizedBox(width: 4),
+                          Text('Your: ${_userRating!.toStringAsFixed(1)}', style: const TextStyle(color: Color(0xFF87CEEB), fontSize: 16)),
+                          const SizedBox(width: 16),
+                        ],
                         const Icon(Icons.calendar_today, color: Colors.white70, size: 18),
                         const SizedBox(width: 8),
                         Text(widget.movie.releaseDate, style: const TextStyle(color: Colors.white70, fontSize: 16)),

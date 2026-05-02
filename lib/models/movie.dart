@@ -6,7 +6,10 @@ class Movie {
   final String backdropPath;
   final double voteAverage;
   final String releaseDate;
-  final List<int> genreIds; // Thêm trường này
+  final List<int> genreIds;
+  final double? userRating;
+  final double? averageRating;
+  final int? totalRatings;
 
   Movie({
     required this.id,
@@ -17,6 +20,9 @@ class Movie {
     required this.voteAverage,
     required this.releaseDate,
     required this.genreIds,
+    this.userRating,
+    this.averageRating,
+    this.totalRatings,
   });
 
   factory Movie.fromJson(Map<String, dynamic> json) {
@@ -29,6 +35,9 @@ class Movie {
       voteAverage: (json['vote_average'] ?? 0).toDouble(),
       releaseDate: json['release_date'] ?? '',
       genreIds: List<int>.from(json['genre_ids'] ?? []),
+      userRating: json['userRating']?.toDouble(),
+      averageRating: json['averageRating']?.toDouble(),
+      totalRatings: json['totalRatings'],
     );
   }
 

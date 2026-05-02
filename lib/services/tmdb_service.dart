@@ -17,7 +17,10 @@ class TmdbService {
   // Khởi tạo Genres
   static Future<void> initGenres() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/genre/movie/list?language=en-US'), headers: _headers);
+      final response = await http.get(
+        Uri.parse('$_baseUrl/genre/movie/list?language=en-US'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List results = data['genres'];

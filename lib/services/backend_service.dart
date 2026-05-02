@@ -130,6 +130,75 @@ class BackendService {
     return headers;
   }
 
+  static Future<Map<String, dynamic>> getMovieRating(int movieId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/ratings/movie/$movieId'),
+        headers: headers,
+      );
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getBatchMovieRatings(List<int> movieIds) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/ratings/batch'),
+        headers: headers,
+        body: jsonEncode({'movieIds': movieIds}),
+      );
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> submitRating(int movieId, double score, {String? moviePoster}) async {
+    try {
+      final headers = await _getHeaders();
+      final body = <String, dynamic>{
+        'movieId': movieId,
+        'score': score,
+      };
+      if (moviePoster != null) body['moviePoster'] = moviePoster;
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/ratings'),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
+  }
+
   static Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
     final contentType = response.headers['content-type'];
     if (contentType == null || !contentType.contains('application/json')) {

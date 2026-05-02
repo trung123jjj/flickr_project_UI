@@ -10,10 +10,17 @@ import 'screens/comments_screen.dart';
 import 'models/movie.dart';
 import 'services/tmdb_service.dart';
 
-Future<void> main() async {
+void main() async {
+  // Đảm bảo Flutter được khởi tạo
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
   
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    print("Warning: .env file not found");
+  }
+  
+  // QUAN TRỌNG: Khởi tạo danh sách thể loại từ TMDB ngay tại đây
   await TmdbService.initGenres();
   
   final prefs = await SharedPreferences.getInstance();
