@@ -46,3 +46,4 @@ app.*.map.json
 
 # API Keys
 lib/config/api_config.dart
+.env

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/movie.dart';
 import '../models/comment.dart';
+import '../services/backend_service.dart';
+import '../services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CommentsScreen extends StatefulWidget {
@@ -15,33 +17,92 @@ class CommentsScreen extends StatefulWidget {
 
 class _CommentsScreenState extends State<CommentsScreen> {
   final TextEditingController _commentController = TextEditingController();
-  final List<Comment> _comments = []; // Giả lập danh sách comment
+  List<Comment> _comments = [];
   String _currentUsername = 'User';
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUsername();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    await _loadUsername();
+    await _loadComments();
+    setState(() => _isLoading = false);
   }
 
   Future<void> _loadUsername() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentUsername = prefs.getString('username') ?? 'User';
+      _currentUsername = prefs.getString('current_user') ?? 'User';
     });
   }
 
-  void _addComment() {
-    if (_commentController.text.trim().isNotEmpty) {
-      setState(() {
-        _comments.insert(0, Comment(
-          username: _currentUsername,
-          content: _commentController.text.trim(),
-          timestamp: DateTime.now(),
-        ));
+  Future<void> _loadComments() async {
+    try {
+      final result = await BackendService.getComments(widget.movie.id);
+
+      if (result['success'] == true) {
+        final List<dynamic> commentsData = result['data'] ?? [];
+        setState(() {
+          _comments = commentsData.map((json) => Comment.fromJson(json)).toList();
+        });
+      } else {
+        print('Failed to load comments: ${result['message']}');
+      }
+    } catch (e) {
+      print('Error loading comments: $e');
+    }
+  }
+
+  Future<void> _addComment() async {
+    if (_commentController.text.trim().isEmpty) return;
+
+    final content = _commentController.text.trim();
+    final username = _currentUsername;
+
+    try {
+      final result = await BackendService.createComment(
+        widget.movie.id,
+        content,
+      );
+
+      if (result['success'] == true) {
         _commentController.clear();
-      });
-      FocusScope.of(context).unfocus();
+        FocusScope.of(context).unfocus();
+        // Add new comment immediately with current username
+        setState(() {
+          _comments.insert(0, Comment(
+            username: username,
+            content: content,
+            timestamp: DateTime.now(),
+          ));
+        });
+      } else {
+        if (result['tokenExpired'] == true) {
+          await AuthService.logout();
+          if (mounted) {
+            Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Failed to post comment'),
+              backgroundColor: const Color(0xFFFF6B00),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connection error. Please try again.'),
+          backgroundColor: Color(0xFFFF6B00),
+        ),
+      );
     }
   }
 
@@ -58,7 +119,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                 height: 220,
                 width: double.infinity,
                 child: CachedNetworkImage(
-                  imageUrl: widget.movie.backdropUrl,
+                  imageUrl: widget.movie.backdropUrl ?? '',
                   fit: BoxFit.cover,
                   errorWidget: (context, url, error) => Container(color: Colors.blueGrey),
                 ),
@@ -72,7 +133,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.black.withOpacity(0.4),
-                      const Color(0xFF0D1B2A), // Hòa quyện vào màu nền
+                      const Color(0xFF0D1B2A),
                     ],
                   ),
                 ),
@@ -122,16 +183,19 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
           // Danh sách bình luận
           Expanded(
-            child: _comments.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _comments.length,
-                    itemBuilder: (context, index) {
-                      final comment = _comments[index];
-                      return _buildCommentItem(comment);
-                    },
-                  ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF87CEEB)))
+                : _comments.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _comments.length,
+                        itemBuilder: (context, index) {
+                          final comment = _comments[index];
+                          return _buildCommentItem(comment);
+                        },
+                      ),
           ),
 
           // Ô nhập bình luận

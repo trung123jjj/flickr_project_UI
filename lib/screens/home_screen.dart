@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/movie.dart';
 import '../models/genre.dart';
 import '../services/tmdb_service.dart';
+import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,7 +37,7 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> _loadUsername() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _username = prefs.getString('username') ?? '';
+      _username = prefs.getString('current_user') ?? '';
     });
   }
 
@@ -100,9 +101,24 @@ class HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Xin chào, $_username!',
-              style: const TextStyle(color: Color(0xFF87CEEB), fontSize: 24, fontWeight: FontWeight.bold)),
-          const CircleAvatar(radius: 25, backgroundImage: AssetImage('assets/images/profile_pic.png')),
+          Expanded(
+            child: Text('Xin chào, $_username!',
+                style: const TextStyle(color: Color(0xFF87CEEB), fontSize: 24, fontWeight: FontWeight.bold)),
+          ),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.logout, color: Colors.white70),
+                onPressed: () async {
+                  await AuthService.logout();
+                  if (mounted) {
+                    Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                  }
+                },
+              ),
+              const CircleAvatar(radius: 25, backgroundImage: AssetImage('assets/images/profile_pic.png')),
+            ],
+          ),
         ],
       ),
     );

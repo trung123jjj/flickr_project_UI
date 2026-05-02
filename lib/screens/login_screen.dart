@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/backend_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,12 +13,54 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text;
+
+    if (username.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter username and password'), backgroundColor: Color(0xFFFF6B00)),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await BackendService.login(username, password);
+
+      if (result['success']) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('current_user', username);
+
+        if (result['token'] != null) {
+          await prefs.setString('auth_token', result['token']);
+        }
+
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Login failed'), backgroundColor: Color(0xFFFF6B00)),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Connection error. Please try again.'), backgroundColor: Color(0xFFFF6B00)),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -34,166 +77,75 @@ class _LoginScreenState extends State<LoginScreen> {
         body: SingleChildScrollView(
           child: Column(
             children: [
-              // Logo nhân vật nằm cạnh nhau
               Container(
                 margin: const EdgeInsets.only(top: 80),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset(
-                      'assets/images/login_icon_1.png',
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.contain,
-                    ),
+                    Image.asset('assets/images/login_icon_1.png', width: 80, height: 80, fit: BoxFit.contain),
                     const SizedBox(width: 20),
-                    Image.asset(
-                      'assets/images/login_icon_2.png',
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.contain,
-                    ),
+                    Image.asset('assets/images/login_icon_2.png', width: 80, height: 80, fit: BoxFit.contain),
                   ],
                 ),
               ),
-
-              // Title tiếng Nhật
               const Padding(
                 padding: EdgeInsets.only(top: 20, left: 32, right: 32),
-                child: Text(
-                  'ひさしぶり!',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 50,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                child: Text('ひさしぶり!', style: TextStyle(color: Colors.white, fontSize: 50, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
               ),
-
-              // Subtitle
               const Padding(
-                padding: EdgeInsets.only(top: 8, left: 32, right: 32,bottom: 10),
-                child: Text(
-                  "It's nice to see you back",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 15,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                padding: EdgeInsets.only(top: 8, left: 32, right: 32, bottom: 10),
+                child: Text("It's nice to see you back", style: TextStyle(color: Colors.white70, fontSize: 15), textAlign: TextAlign.center),
               ),
-
               const SizedBox(height: 20),
-
-              // Username field
-              _buildInputField(
-                controller: _usernameController,
-                hint: 'Username',
-                iconPath: 'assets/images/username_icon.png',
-              ),
-
-              // Password field
+              _buildInputField(controller: _usernameController, hint: 'Username', iconPath: 'assets/images/username_icon.png'),
               _buildPasswordField(
                 controller: _passwordController,
                 hint: 'Password',
                 iconPath: 'assets/images/password_icon.png',
                 obscureText: _obscurePassword,
-                onToggle: () {
-                  setState(() {
-                    _obscurePassword = !_obscurePassword;
-                  });
-                },
+                onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
               ),
-
-              // Forget password
               Padding(
                 padding: const EdgeInsets.only(top: 0, right: 33),
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
-                    onTap: () {},
-                    child: const Text(
-                      'Forget Your Password?',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Forgot password feature coming soon'), backgroundColor: Color(0xFFFF6B00)),
+                      );
+                    },
+                    child: const Text('Forget Your Password?', style: TextStyle(color: Colors.white70, fontSize: 14)),
                   ),
                 ),
               ),
-
-              // Login button
               Container(
                 margin: const EdgeInsets.fromLTRB(40, 32, 40, 0),
                 width: double.infinity,
                 height: 52,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFF6B00), Color(0xFFFFAB40)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
+                    gradient: const LinearGradient(colors: [Color(0xFFFF6B00), Color(0xFFFFAB40)], begin: Alignment.centerLeft, end: Alignment.centerRight),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ElevatedButton(
-                    onPressed: () async {
-                      final username = _usernameController.text.trim();
-                      final password = _passwordController.text.trim();
-
-                      // Kiểm tra không được để trống
-                      if (username.isEmpty || password.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin')),
-                        );
-                        return;
-                      }
-
-                      // Lưu username vào SharedPreferences
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setString('username', username);
-
-                      // Chuyển sang Home page
-                      Navigator.pushReplacementNamed(context, '/home');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Log in',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    onPressed: _isLoading ? null : _handleLogin,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    child: _isLoading
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Log in', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ),
-
-              // Sign up link
               Padding(
                 padding: const EdgeInsets.only(top: 20, bottom: 40),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      "Don't have an account yet?",
-                      style: TextStyle(color: Colors.white70, fontSize: 15),
-                    ),
+                    const Text("Don't have an account yet?", style: TextStyle(color: Colors.white70, fontSize: 15)),
                     TextButton(
                       onPressed: () => Navigator.pushNamed(context, '/signup'),
-                      child: const Text(
-                        'Sign up',
-                        style: TextStyle(
-                          color: Color(0xFF87CEEB),
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: const Text('Sign up', style: TextStyle(color: Color(0xFF87CEEB), fontSize: 15, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),

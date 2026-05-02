@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/intro_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -8,18 +10,22 @@ import 'screens/comments_screen.dart';
 import 'models/movie.dart';
 import 'services/tmdb_service.dart';
 
-void main() async {
-  // Đảm bảo Flutter binding được khởi tạo
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   
-  // Khởi tạo danh sách thể loại từ TMDB ngay khi mở app
   await TmdbService.initGenres();
   
-  runApp(const MyApp());
+  final prefs = await SharedPreferences.getInstance();
+  final currentUser = prefs.getString('current_user');
+  
+  runApp(MyApp(initialRoute: currentUser != null ? '/home' : '/'));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String initialRoute;
+  
+  const MyApp({super.key, this.initialRoute = '/'});
 
   @override
   Widget build(BuildContext context) {
@@ -34,8 +40,7 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
-      // Đặt lại trang chủ là IntroScreen
-      home: const HomeScreen(),
+      initialRoute: initialRoute,
       onGenerateRoute: (settings) {
         Widget page;
         
@@ -47,6 +52,9 @@ class MyApp extends StatelessWidget {
           page = CommentsScreen(movie: movie);
         } else {
           switch (settings.name) {
+            case '/':
+              page = const IntroScreen();
+              break;
             case '/login':
               page = const LoginScreen();
               break;

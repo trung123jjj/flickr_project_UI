@@ -9,7 +9,7 @@ class TmdbService {
   static const String _baseUrl = 'https://api.themoviedb.org/3';
   static Map<int, String> _genreMap = {};
 
-  static const Map<String, String> _headers = {
+  static Map<String, String> get _headers => {
     'Authorization': 'Bearer ${ApiConfig.tmdbAccessToken}',
     'Content-Type': 'application/json',
   };
