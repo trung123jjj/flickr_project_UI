@@ -71,7 +71,12 @@ class HomeScreenState extends State<HomeScreen> {
     if (allMovieIds.isNotEmpty) {
       final result = await BackendService.getBatchMovieRatings(allMovieIds.toList());
       if (result['success'] == true) {
-        ratings = Map<int, dynamic>.from(result['data'] ?? {});
+        final data = result['data'];
+        if (data != null) {
+          (data as Map).forEach((key, value) {
+            ratings[int.parse(key.toString())] = value;
+          });
+        }
       }
     }
 
