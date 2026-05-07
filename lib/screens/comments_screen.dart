@@ -19,6 +19,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
   final TextEditingController _commentController = TextEditingController();
   List<Comment> _comments = [];
   String _currentUsername = 'User';
+  String? _currentUserAvatar;
   bool _isLoading = false;
 
   @override
@@ -38,6 +39,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _currentUsername = prefs.getString('current_user') ?? 'User';
+      _currentUserAvatar = prefs.getString('user_avatar');
     });
   }
 
@@ -73,12 +75,13 @@ class _CommentsScreenState extends State<CommentsScreen> {
       if (result['success'] == true) {
         _commentController.clear();
         FocusScope.of(context).unfocus();
-        // Add new comment immediately with current username
+        // Add new comment immediately with current username and avatar
         setState(() {
           _comments.insert(0, Comment(
             username: username,
             content: content,
             timestamp: DateTime.now(),
+            avatarUrl: _currentUserAvatar,
           ));
         });
       } else {
@@ -231,9 +234,15 @@ class _CommentsScreenState extends State<CommentsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Avatar tròn bên cạnh tên
-          const CircleAvatar(
+          CircleAvatar(
             radius: 18,
-            backgroundImage: AssetImage('assets/images/profile_pic.png'),
+            backgroundColor: Colors.grey[800],
+            backgroundImage: comment.avatarUrl != null && comment.avatarUrl!.isNotEmpty
+                ? CachedNetworkImageProvider(comment.avatarUrl!)
+                : const AssetImage('assets/images/profile_pic.png') as ImageProvider,
+            child: (comment.avatarUrl == null || comment.avatarUrl!.isEmpty)
+                ? const Icon(Icons.person, size: 20, color: Colors.white70)
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(

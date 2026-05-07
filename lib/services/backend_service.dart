@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import 'auth_service.dart';
+import 'dart:io';
+import 'package:http_parser/http_parser.dart';
 
 class BackendService {
   static String get _baseUrl => ApiConfig.backendBaseUrl;
@@ -228,5 +230,72 @@ class BackendService {
       'data': data,
       'token': data['accessToken'] ?? data['token'],
     };
+  }
+
+  static Future<Map<String, dynamic>> updateAvatar(File avatarFile) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      if (token == null || token.isEmpty) {
+        return {
+          'success': false,
+          'message': 'Not authenticated',
+          'data': null,
+        };
+      }
+
+      final request = http.MultipartRequest(
+        'PUT',
+        Uri.parse('$_baseUrl/api/users/avatar'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $token';
+
+      final extension = avatarFile.path.split('.').last.toLowerCase();
+      final mimeType = extension == 'png'
+          ? 'image/png'
+          : extension == 'gif'
+              ? 'image/gif'
+              : extension == 'webp'
+                  ? 'image/webp'
+                  : 'image/jpeg';
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'avatar',
+          avatarFile.path,
+          contentType: MediaType.parse(mimeType),
+        ),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return _handleResponse(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getUserProfile() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/users/profile'),
+        headers: headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../models/movie.dart';
 import '../models/genre.dart';
 import '../services/tmdb_service.dart';
@@ -16,17 +18,21 @@ class HomeScreen extends StatefulWidget {
 
 class HomeScreenState extends State<HomeScreen> {
   String _username = '';
+  String? _avatarUrl;
   List<Movie> _popularMovies = [];
   List<Movie> _nowPlayingMovies = [];
   List<Genre> _genres = [];
   Map<int, dynamic> _movieRatings = {};
   bool _isLoading = true;
+  bool _isUploadingAvatar = false;
   final PageController _pageController = PageController(viewportFraction: 0.9);
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
     _loadUsername();
+    _loadUserProfile();
     _loadAllData();
   }
 
@@ -41,6 +47,23 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() {
       _username = prefs.getString('current_user') ?? '';
     });
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final result = await BackendService.getUserProfile();
+      if (result['success'] == true && result['data'] != null) {
+        final data = result['data'];
+        setState(() {
+          _avatarUrl = data['avatar_url'];
+        });
+        // Save avatar URL to preferences for use in comments
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_avatar', data['avatar_url'] ?? '');
+      }
+    } catch (e) {
+      print('Error loading user profile: $e');
+    }
   }
 
   Future<void> _loadAllData() async {
@@ -106,6 +129,83 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _pickAndUploadAvatar() async {
+    await _selectAndUploadImage();
+  }
+
+  Future<void> _selectAndUploadImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      ).catchError((e) {
+        throw e;
+      });
+
+      if (image == null) return;
+
+      setState(() => _isUploadingAvatar = true);
+
+      final result = await BackendService.updateAvatar(File(image.path));
+
+      if (result['success'] == true) {
+        await _loadUserProfile();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cập nhật avatar thành công!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Failed to update avatar'),
+              backgroundColor: const Color(0xFFFF6B00),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      String message = 'Không thể mở thư viện ảnh';
+      
+      // Kiểm tra nếu là lỗi quyền
+      final error = e.toString().toLowerCase();
+      if (error.contains('permission') || 
+          error.contains('platformexception') ||
+          error.contains('denied')) {
+        message = 'Chưa cấp quyền truy cập ảnh.\n\n'
+            'Cách khắc phục:\n'
+            '1. Gỡ cài đặt app này\n'
+            '2. Cài lại app\n'
+            '3. Khi app hỏi quyền, bấm "Cho phép"';
+      }
+      
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFF1B263B),
+            title: const Text('Lỗi', style: TextStyle(color: Colors.white)),
+            content: Text(message, style: const TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Đã hiểu', style: TextStyle(color: Color(0xFF87CEEB))),
+              ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingAvatar = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -154,7 +254,45 @@ class HomeScreenState extends State<HomeScreen> {
                   }
                 },
               ),
-              const CircleAvatar(radius: 25, backgroundImage: AssetImage('assets/images/profile_pic.png')),
+              GestureDetector(
+                onTap: _isUploadingAvatar ? null : _pickAndUploadAvatar,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 25,
+                      backgroundColor: Colors.grey[800],
+                      backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
+                          ? CachedNetworkImageProvider(_avatarUrl!)
+                          : const AssetImage('assets/images/profile_pic.png') as ImageProvider,
+                      child: _avatarUrl == null || _avatarUrl!.isEmpty
+                          ? const Icon(Icons.person, color: Colors.white70, size: 30)
+                          : null,
+                    ),
+                    if (_isUploadingAvatar)
+                      const CircleAvatar(
+                        radius: 25,
+                        backgroundColor: Colors.black54,
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF87CEEB),
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFF6B00),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.edit, size: 12, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
