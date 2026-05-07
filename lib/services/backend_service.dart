@@ -206,30 +206,37 @@ class BackendService {
     if (contentType == null || !contentType.contains('application/json')) {
       return {
         'success': false,
-        'message': 'Server error (Status: ${response.statusCode})',
+        'message': 'Server error (Status: ${response.statusCode}) - ${response.body}',
         'data': null,
       };
     }
 
-    final data = jsonDecode(response.body);
+    try {
+      final data = jsonDecode(response.body);
 
-    if (response.statusCode == 403 &&
-        data['message']?.toString().contains('expired') == true) {
-      await AuthService.logout();
+      if (response.statusCode == 403 &&
+          data['message']?.toString().contains('expired') == true) {
+        await AuthService.logout();
+        return {
+          'success': false,
+          'message': 'Session expired. Please login again.',
+          'data': null,
+          'tokenExpired': true,
+        };
+      }
+
+      return {
+        'success': response.statusCode >= 200 && response.statusCode < 300,
+        'message': data['message'] ?? 'Request failed (Status: ${response.statusCode})',
+        'data': data,
+      };
+    } catch (e) {
       return {
         'success': false,
-        'message': 'Session expired. Please login again.',
+        'message': 'Server error (Status: ${response.statusCode}) - ${response.body}',
         'data': null,
-        'tokenExpired': true,
       };
     }
-
-    return {
-      'success': response.statusCode >= 200 && response.statusCode < 300,
-      'message': data['message'] ?? 'Request failed (Status: ${response.statusCode})',
-      'data': data,
-      'token': data['accessToken'] ?? data['token'],
-    };
   }
 
   static Future<Map<String, dynamic>> updateAvatar(File avatarFile) async {
@@ -240,7 +247,7 @@ class BackendService {
       if (token == null || token.isEmpty) {
         return {
           'success': false,
-          'message': 'Not authenticated',
+          'message': 'Chưa đăng nhập',
           'data': null,
         };
       }
@@ -272,11 +279,19 @@ class BackendService {
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
+      if (response.statusCode == 502 || response.statusCode == 503) {
+        return {
+          'success': false,
+          'message': 'Server đang khởi động, vui lòng thử lại sau 1-2 phút',
+          'data': null,
+        };
+      }
+
       return _handleResponse(response);
     } catch (e) {
       return {
         'success': false,
-        'message': 'Connection error: $e',
+        'message': 'Lỗi kết nối: $e',
         'data': null,
       };
     }

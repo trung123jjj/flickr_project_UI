@@ -37,13 +37,40 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final result = await BackendService.login(username, password);
+      
+      print('Login response: $result'); // Debug log
 
-      if (result['success']) {
+      if (result['success'] == true) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('current_user', username);
 
-        if (result['token'] != null) {
-          await prefs.setString('auth_token', result['token']);
+        // Backend trả về accessToken trong result['data']['accessToken']
+        final data = result['data'];
+        print('Login data: $data'); // Debug log
+        
+        String? token;
+        if (data is Map) {
+          token = data['accessToken']?.toString();
+        }
+        
+        if (token != null && token.isNotEmpty) {
+          await prefs.setString('auth_token', token);
+          print('Token saved successfully: $token');
+          // Verify token was saved
+          final savedToken = prefs.getString('auth_token');
+          print('Verified saved token: $savedToken');
+        } else {
+          print('ERROR: No accessToken in login response. Data: $data');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Lỗi: Không nhận được token từ server'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          setState(() => _isLoading = false);
+          return;
         }
 
         if (mounted) {

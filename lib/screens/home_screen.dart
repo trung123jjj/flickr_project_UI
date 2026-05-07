@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import '../models/movie.dart';
 import '../models/genre.dart';
@@ -135,6 +136,52 @@ class HomeScreenState extends State<HomeScreen> {
 
   Future<void> _selectAndUploadImage() async {
     try {
+      // Kiểm tra và xin quyền truy cập ảnh
+      Permission permission = Platform.isAndroid 
+          ? Permission.mediaLibrary 
+          : Permission.photos;
+      
+      PermissionStatus status = await permission.status;
+      
+      if (status.isDenied) {
+        status = await permission.request();
+      }
+      
+      if (status.isPermanentlyDenied) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: const Color(0xFF1B263B),
+              title: const Text('Cần cấp quyền', style: TextStyle(color: Colors.white)),
+              content: const Text(
+                'Ứng dụng cần quyền truy cập thư viện ảnh để đổi avatar.\n\n'
+                'Vui lòng vào Cài đặt > Ứng dụng > Flickr Project > Quyền hạn để cấp quyền.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Để sau', style: TextStyle(color: Color(0xFF87CEEB))),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    openAppSettings();
+                  },
+                  child: const Text('Mở cài đặt', style: TextStyle(color: Color(0xFF87CEEB))),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+      
+      if (!status.isGranted) {
+        throw Exception('permission_denied');
+      }
+
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 512,
