@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/backend_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -48,13 +48,10 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await BackendService.signup(username, password);
+      final authProvider = context.read<AuthProvider>();
+      final result = await authProvider.signup(username, password);
 
-      if (result['success']) {
-        _showMessage('Account created successfully!');
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('current_user', username);
-
+      if (result['success'] == true) {
         if (mounted) {
           Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
         }

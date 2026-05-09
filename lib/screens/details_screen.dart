@@ -19,14 +19,16 @@ class _DetailsScreenState extends State<DetailsScreen> {
   bool _isExpanded = false;
   List<Cast> _cast = [];
   bool _isLoadingCast = true;
+  String? _castError;
 
   double? _userRating;
   double? _averageRating;
   int _totalRatings = 0;
   bool _isLoadingRating = true;
-
+  bool _ratingUpdated = false;
   YoutubePlayerController? _youtubeController;
   bool _isLoadingTrailer = true;
+  String? _trailerError;
 
   @override
   void initState() {
@@ -37,17 +39,28 @@ class _DetailsScreenState extends State<DetailsScreen> {
   }
 
   Future<void> _loadRating() async {
-    final result = await BackendService.getMovieRating(widget.movie.id);
-    if (mounted && result['success'] == true) {
-      final data = result['data'];
-      setState(() {
-        _averageRating = (data['averageScore'] ?? 0).toDouble();
-        _totalRatings = data['totalRatings'] ?? 0;
-        _userRating = data['userScore']?.toDouble();
+    try {
+      final result = await BackendService.getMovieRating(widget.movie.id);
+      if (mounted && result['success'] == true) {
+        final data = result['data'];
+        setState(() {
+          _averageRating = (data['averageScore'] ?? 0).toDouble();
+          _totalRatings = data['totalRatings'] ?? 0;
+          _userRating = data['userScore']?.toDouble();
+          _isLoadingRating = false;
+        });
+      } else {
+        setState(() {
+          _averageRating = widget.movie.averageRating;
+          _totalRatings = widget.movie.totalRatings ?? 0;
+          _isLoadingRating = false;
+        });
+      }
+    } catch (e) {
+      print('DetailsScreen._loadRating error: $e');
+      if (mounted) setState(() {
         _isLoadingRating = false;
       });
-    } else {
-      setState(() => _isLoadingRating = false);
     }
   }
 
@@ -57,11 +70,21 @@ class _DetailsScreenState extends State<DetailsScreen> {
       score,
       moviePoster: widget.movie.posterPath,
     );
-    if (result['success'] == true && mounted) {
-      await _loadRating();
-      setState(() {
-        _userRating = score;
-      });
+    if (mounted) {
+      if (result['success'] == true) {
+        await _loadRating();
+        setState(() {
+          _userRating = score;
+          _ratingUpdated = true;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to submit rating'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -123,29 +146,46 @@ class _DetailsScreenState extends State<DetailsScreen> {
   }
 
   Future<void> _loadCast() async {
-    final castList = await TmdbService.getMovieCast(widget.movie.id);
-    if (mounted) {
-      setState(() {
-        _cast = castList;
+    try {
+      final castList = await TmdbService.getMovieCast(widget.movie.id);
+      if (mounted) {
+        setState(() {
+          _cast = castList;
+          _isLoadingCast = false;
+          if (castList.isEmpty) _castError = 'No cast information available';
+        });
+      }
+    } catch (e) {
+      print('DetailsScreen._loadCast error: $e');
+      if (mounted) setState(() {
         _isLoadingCast = false;
+        _castError = 'Failed to load cast';
       });
     }
   }
 
   Future<void> _loadTrailer() async {
-    final trailerKey = await TmdbService.getMovieTrailerKey(widget.movie.id);
-    if (mounted) {
-      if (trailerKey != null && trailerKey.isNotEmpty) {
-        _youtubeController = YoutubePlayerController(
-          initialVideoId: trailerKey,
-          flags: const YoutubePlayerFlags(
-            autoPlay: false,
-            mute: false,
-            disableDragSeek: false,
-          ),
-        );
+    try {
+      final trailerKey = await TmdbService.getMovieTrailerKey(widget.movie.id);
+      if (mounted) {
+        if (trailerKey != null && trailerKey.isNotEmpty) {
+          _youtubeController = YoutubePlayerController(
+            initialVideoId: trailerKey,
+            flags: const YoutubePlayerFlags(
+              autoPlay: false,
+              mute: false,
+              disableDragSeek: false,
+            ),
+          );
+        }
+        setState(() => _isLoadingTrailer = false);
       }
-      setState(() => _isLoadingTrailer = false);
+    } catch (e) {
+      print('DetailsScreen._loadTrailer error: $e');
+      if (mounted) setState(() {
+        _isLoadingTrailer = false;
+        _trailerError = 'Failed to load trailer';
+      });
     }
   }
 
@@ -246,7 +286,19 @@ class _DetailsScreenState extends State<DetailsScreen> {
   Widget build(BuildContext context) {
     final genreNames = TmdbService.getGenreNames(widget.movie.genreIds);
     
-    return YoutubePlayerBuilder(
+    return PopScope(
+      canPop: !_ratingUpdated,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _ratingUpdated) {
+          Navigator.pop(context, {
+            'updatedRating': true,
+            'movieId': widget.movie.id,
+            'averageRating': _averageRating,
+            'totalRatings': _totalRatings,
+          });
+        }
+      },
+      child: YoutubePlayerBuilder(
       player: YoutubePlayer(
         controller: _youtubeController ?? YoutubePlayerController(initialVideoId: ''),
       ),
@@ -293,7 +345,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                         if (_userRating != null) ...[
                           const Icon(Icons.person, color: Color(0xFF87CEEB), size: 18),
                           const SizedBox(width: 4),
-                          Text('Your: ${_userRating!.toStringAsFixed(1)}', style: const TextStyle(color: Color(0xFF87CEEB), fontSize: 16)),
+                          Text('Yours: ${_userRating!.toStringAsFixed(1)}', style: const TextStyle(color: Color(0xFF87CEEB), fontSize: 16)),
                           const SizedBox(width: 16),
                         ],
                         const Icon(Icons.calendar_today, color: Colors.white70, size: 18),
@@ -309,13 +361,31 @@ class _DetailsScreenState extends State<DetailsScreen> {
                       const SizedBox(height: 35),
                       const Text('Cast', style: TextStyle(color: Color(0xFF87CEEB), fontSize: 22, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 15),
-                      _isLoadingCast ? const Center(child: CircularProgressIndicator()) : _buildCastList(),
+                      _isLoadingCast
+                          ? const Center(child: CircularProgressIndicator())
+                          : _castError != null
+                              ? Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 20),
+                                  child: Center(
+                                    child: Text(_castError!, style: const TextStyle(color: Colors.white54)),
+                                  ),
+                                )
+                              : _buildCastList(),
                       const SizedBox(height: 35),
                       const Text('Trailer', style: TextStyle(color: Color(0xFF87CEEB), fontSize: 22, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 15),
-                      _youtubeController != null 
-                          ? Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)), child: ClipRRect(borderRadius: BorderRadius.circular(15), child: player))
-                          : const Text("Trailer not available", style: TextStyle(color: Colors.white54)),
+                      _isLoadingTrailer
+                          ? const Center(child: CircularProgressIndicator())
+                          : _trailerError != null
+                              ? Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 20),
+                                  child: Center(
+                                    child: Text(_trailerError!, style: const TextStyle(color: Colors.white54)),
+                                  ),
+                                )
+                              : _youtubeController != null 
+                                  ? Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)), child: ClipRRect(borderRadius: BorderRadius.circular(15), child: player))
+                                  : const Text("Trailer not available", style: TextStyle(color: Colors.white54)),
                       
                       const SizedBox(height: 40),
                       
@@ -348,6 +418,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
           ),
         );
       }
+    ),
     );
   }
 

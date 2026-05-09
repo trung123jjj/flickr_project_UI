@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import '../models/movie.dart';
 import '../models/comment.dart';
 import '../services/backend_service.dart';
-import '../services/auth_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../providers/auth_provider.dart';
 
 class CommentsScreen extends StatefulWidget {
   final Movie movie;
@@ -18,8 +18,6 @@ class CommentsScreen extends StatefulWidget {
 class _CommentsScreenState extends State<CommentsScreen> {
   final TextEditingController _commentController = TextEditingController();
   List<Comment> _comments = [];
-  String _currentUsername = 'User';
-  String? _currentUserAvatar;
   bool _isLoading = false;
 
   @override
@@ -30,17 +28,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    await _loadUsername();
     await _loadComments();
     setState(() => _isLoading = false);
-  }
-
-  Future<void> _loadUsername() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _currentUsername = prefs.getString('current_user') ?? 'User';
-      _currentUserAvatar = prefs.getString('user_avatar');
-    });
   }
 
   Future<void> _loadComments() async {
@@ -64,7 +53,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
     if (_commentController.text.trim().isEmpty) return;
 
     final content = _commentController.text.trim();
-    final username = _currentUsername;
+    final auth = context.read<AuthProvider>();
+    final username = auth.currentUser ?? 'User';
 
     try {
       final result = await BackendService.createComment(
@@ -75,18 +65,17 @@ class _CommentsScreenState extends State<CommentsScreen> {
       if (result['success'] == true) {
         _commentController.clear();
         FocusScope.of(context).unfocus();
-        // Add new comment immediately with current username and avatar
         setState(() {
           _comments.insert(0, Comment(
             username: username,
             content: content,
             timestamp: DateTime.now(),
-            avatarUrl: _currentUserAvatar,
+            avatarUrl: auth.avatarUrl,
           ));
         });
       } else {
         if (result['tokenExpired'] == true) {
-          await AuthService.logout();
+          await auth.logout();
           if (mounted) {
             Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
           }

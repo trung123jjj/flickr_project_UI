@@ -26,7 +26,9 @@ class TmdbService {
         final List results = data['genres'];
         for (var item in results) { _genreMap[item['id']] = item['name']; }
       }
-    } catch (e) {}
+    } catch (e) {
+      print('TmdbService.initGenres error: $e');
+    }
   }
 
   static List<String> getGenreNames(List<int> ids) {
@@ -52,6 +54,7 @@ class TmdbService {
       }
       return null;
     } catch (e) {
+      print('TmdbService.getMovieTrailerKey error: $e');
       return null;
     }
   }
@@ -65,7 +68,10 @@ class TmdbService {
         return castList.take(10).map((json) => Cast.fromJson(json)).toList();
       }
       return [];
-    } catch (e) { return []; }
+    } catch (e) {
+      print('TmdbService.getMovieCast error: $e');
+      return [];
+    }
   }
 
   static Future<Map<String, dynamic>?> getActorDetails(int personId) async {
@@ -73,7 +79,10 @@ class TmdbService {
       final response = await http.get(Uri.parse('$_baseUrl/person/$personId?language=en-US'), headers: _headers);
       if (response.statusCode == 200) { return jsonDecode(response.body); }
       return null;
-    } catch (e) { return null; }
+    } catch (e) {
+      print('TmdbService.getActorDetails error: $e');
+      return null;
+    }
   }
 
   static Future<List<Genre>> getGenres() async {
@@ -85,7 +94,10 @@ class TmdbService {
         return results.map((json) => Genre.fromJson(json)).toList();
       }
       return [];
-    } catch (e) { return []; }
+    } catch (e) {
+      print('TmdbService.getGenres error: $e');
+      return [];
+    }
   }
 
   static Future<List<String>> getBackdropListForGenre(int genreId) async {
@@ -97,7 +109,10 @@ class TmdbService {
         return results.where((m) => m['backdrop_path'] != null).map((m) => 'https://image.tmdb.org/t/p/w500${m['backdrop_path']}').toList();
       }
       return [];
-    } catch (e) { return []; }
+    } catch (e) {
+      print('TmdbService.getBackdropListForGenre error: $e');
+      return [];
+    }
   }
 
   static Future<List<Movie>> getPopularMovies() async {
@@ -109,7 +124,10 @@ class TmdbService {
         return results.map((json) => Movie.fromJson(json)).toList();
       }
       return [];
-    } catch (e) { return []; }
+    } catch (e) {
+      print('TmdbService.getPopularMovies error: $e');
+      return [];
+    }
   }
 
   static Future<List<Movie>> getNowPlayingMovies() async {
@@ -121,6 +139,45 @@ class TmdbService {
         return results.map((json) => Movie.fromJson(json)).toList();
       }
       return [];
-    } catch (e) { return []; }
+    } catch (e) {
+      print('TmdbService.getNowPlayingMovies error: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Movie>> getMoviesByGenre(int genreId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/discover/movie?with_genres=$genreId&language=en-US&sort_by=popularity.desc&page=1'),
+        headers: _headers,
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List results = data['results'];
+        return results.map((json) => Movie.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('TmdbService.getMoviesByGenre error: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Movie>> searchMovies(String query) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/search/movie?query=${Uri.encodeComponent(query)}&language=en-US&page=1'),
+        headers: _headers,
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List results = data['results'];
+        return results.map((json) => Movie.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('TmdbService.searchMovies error: $e');
+      return [];
+    }
   }
 }

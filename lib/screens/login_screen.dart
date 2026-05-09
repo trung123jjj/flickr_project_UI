@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/backend_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -36,55 +36,26 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await BackendService.login(username, password);
-      
-      print('Login response: $result'); // Debug log
+      final authProvider = context.read<AuthProvider>();
+      final result = await authProvider.login(username, password);
 
       if (result['success'] == true) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('current_user', username);
-
-        // Backend trả về accessToken trong result['data']['accessToken']
-        final data = result['data'];
-        print('Login data: $data'); // Debug log
-        
-        String? token;
-        if (data is Map) {
-          token = data['accessToken']?.toString();
-        }
-        
-        if (token != null && token.isNotEmpty) {
-          await prefs.setString('auth_token', token);
-          print('Token saved successfully: $token');
-          // Verify token was saved
-          final savedToken = prefs.getString('auth_token');
-          print('Verified saved token: $savedToken');
-        } else {
-          print('ERROR: No accessToken in login response. Data: $data');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Lỗi: Không nhận được token từ server'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          setState(() => _isLoading = false);
-          return;
-        }
-
         if (mounted) {
           Navigator.pushReplacementNamed(context, '/home');
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message'] ?? 'Login failed'), backgroundColor: Color(0xFFFF6B00)),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'] ?? 'Login failed'), backgroundColor: Color(0xFFFF6B00)),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Connection error. Please try again.'), backgroundColor: Color(0xFFFF6B00)),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Connection error. Please try again.'), backgroundColor: Color(0xFFFF6B00)),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
