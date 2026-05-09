@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/intro_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -9,6 +10,7 @@ import 'screens/home_screen.dart';
 import 'screens/details_screen.dart';
 import 'screens/comments_screen.dart';
 import 'screens/genre_movies_screen.dart';
+import 'screens/settings_screen.dart';
 import 'models/movie.dart';
 import 'services/tmdb_service.dart';
 
@@ -26,31 +28,69 @@ void main() async {
   final authProvider = AuthProvider();
   await authProvider.loadSession();
 
-  runApp(MyApp(authProvider: authProvider));
+  final themeProvider = ThemeProvider();
+  await themeProvider.loadTheme();
+
+  runApp(MyApp(authProvider: authProvider, themeProvider: themeProvider));
 }
 
 class MyApp extends StatelessWidget {
   final AuthProvider authProvider;
+  final ThemeProvider themeProvider;
 
-  const MyApp({super.key, required this.authProvider});
+  const MyApp({super.key, required this.authProvider, required this.themeProvider});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: authProvider,
-      child: Consumer<AuthProvider>(
-        builder: (context, auth, _) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: authProvider),
+        ChangeNotifierProvider.value(value: themeProvider),
+      ],
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          final auth = context.watch<AuthProvider>();
+
+          final darkTheme = ThemeData(
+            brightness: Brightness.dark,
+            scaffoldBackgroundColor: const Color(0xFF0D1B2A),
+            cardColor: const Color(0xFF1B263B),
+            dividerColor: Colors.white12,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFF1B263B),
+              iconTheme: IconThemeData(color: Colors.white),
+              titleTextStyle: TextStyle(color: Colors.white, fontSize: 20),
+            ),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF87CEEB),
+              brightness: Brightness.dark,
+              secondary: const Color(0xFFFF6B00),
+            ),
+          );
+
+          final lightTheme = ThemeData(
+            brightness: Brightness.light,
+            scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+            cardColor: Colors.white,
+            dividerColor: Colors.black12,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFF1B263B),
+              iconTheme: IconThemeData(color: Colors.white),
+              titleTextStyle: TextStyle(color: Colors.white, fontSize: 20),
+            ),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF1976D2),
+              brightness: Brightness.light,
+              secondary: const Color(0xFFFF6B00),
+            ),
+          );
+
           return MaterialApp(
             title: 'Flickr App',
             debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              brightness: Brightness.dark,
-              scaffoldBackgroundColor: const Color(0xFF0D1B2A),
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: const Color(0xFF0D1B2A),
-                brightness: Brightness.dark,
-              ),
-            ),
+            theme: lightTheme,
+            darkTheme: darkTheme,
+            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             initialRoute: auth.isLoggedIn ? '/home' : '/',
             onGenerateRoute: (settings) {
               Widget page;
@@ -67,6 +107,8 @@ class MyApp extends StatelessWidget {
                   genreId: args['genreId'] as int,
                   genreName: args['genreName'] as String,
                 );
+              } else if (settings.name == '/settings') {
+                page = const SettingsScreen();
               } else {
                 switch (settings.name) {
                   case '/':

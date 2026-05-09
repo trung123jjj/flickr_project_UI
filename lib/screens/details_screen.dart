@@ -94,7 +94,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1B263B),
+          backgroundColor: Theme.of(context).cardColor,
           title: const Text('Rate this movie', style: TextStyle(color: Colors.white)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -115,13 +115,13 @@ class _DetailsScreenState extends State<DetailsScreen> {
                   );
                 }),
               ),
-              Text('${tempRating.toInt()}/5', style: const TextStyle(color: Colors.white70)),
+              Text('${tempRating.toInt()}/5', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+              child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ),
             ElevatedButton(
               onPressed: tempRating > 0
@@ -240,7 +240,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(actor.name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                                Text(actor.name, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 22, fontWeight: FontWeight.bold)),
                                 Text("as ${actor.character}", style: const TextStyle(color: Color(0xFF87CEEB), fontSize: 16)),
                               ],
                             ),
@@ -256,7 +256,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                     const SizedBox(height: 10),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text(biography, style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.5), textAlign: TextAlign.justify),
+                      child: Text(biography, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 15, height: 1.5), textAlign: TextAlign.justify),
                     ),
                     const SizedBox(height: 30),
                   ],
@@ -304,7 +304,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
       ),
       builder: (context, player) {
         return Scaffold(
-          backgroundColor: const Color(0xFF0D1B2A),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: CustomScrollView(
             slivers: [
               SliverAppBar(
@@ -317,7 +317,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.movie.title, style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold)),
+                      Text(widget.movie.title, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 30, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
                       Row(children: [
                         GestureDetector(
@@ -336,7 +336,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                     ),
                               if (_totalRatings > 0) ...[
                                 const SizedBox(width: 4),
-                                Text('($_totalRatings)', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                                Text('($_totalRatings)', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14)),
                               ],
                             ],
                           ),
@@ -350,7 +350,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                         ],
                         const Icon(Icons.calendar_today, color: Colors.white70, size: 18),
                         const SizedBox(width: 8),
-                        Text(widget.movie.releaseDate, style: const TextStyle(color: Colors.white70, fontSize: 16)),
+                        Text(widget.movie.releaseDate, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),
                       ]),
                       const SizedBox(height: 20),
                       Wrap(spacing: 8, runSpacing: 8, children: genreNames.map((name) => _buildGenreChip(name)).toList()),
@@ -367,7 +367,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                               ? Padding(
                                   padding: const EdgeInsets.symmetric(vertical: 20),
                                   child: Center(
-                                    child: Text(_castError!, style: const TextStyle(color: Colors.white54)),
+                                    child: Text(_castError!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                                   ),
                                 )
                               : _buildCastList(),
@@ -380,7 +380,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                               ? Padding(
                                   padding: const EdgeInsets.symmetric(vertical: 20),
                                   child: Center(
-                                    child: Text(_trailerError!, style: const TextStyle(color: Colors.white54)),
+                                    child: Text(_trailerError!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                                   ),
                                 )
                               : _youtubeController != null 
@@ -424,7 +424,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
 
   Widget _buildOverview() {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(widget.movie.overview, style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.6), maxLines: _isExpanded ? null : 4, textAlign: TextAlign.justify),
+      Text(widget.movie.overview, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 16, height: 1.6), maxLines: _isExpanded ? null : 4, textAlign: TextAlign.justify),
       GestureDetector(
         onTap: () => setState(() => _isExpanded = !_isExpanded),
         child: Text(_isExpanded ? 'Read less' : 'Read more', style: const TextStyle(color: Color(0xFF87CEEB), fontWeight: FontWeight.bold)),
@@ -443,7 +443,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
           child: Container(width: 100, margin: const EdgeInsets.only(right: 16), child: Column(children: [
             CircleAvatar(radius: 40, backgroundImage: CachedNetworkImageProvider(actor.profileUrl)),
             const SizedBox(height: 10),
-            Text(actor.name, style: const TextStyle(color: Colors.white, fontSize: 12), textAlign: TextAlign.center, maxLines: 2),
+            Text(actor.name, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 12), textAlign: TextAlign.center, maxLines: 2),
           ])),
         );
       },
@@ -451,6 +451,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
   }
 
   Widget _buildGenreChip(String label) {
-    return Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: Text(label, style: const TextStyle(color: Colors.white70, fontSize: 14)));
+    return Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14)));
   }
 }

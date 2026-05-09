@@ -85,17 +85,18 @@ class _GenreMoviesScreenState extends State<GenreMoviesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: const Color(0xFF1B263B),
-        title: Text(widget.genreName, style: const TextStyle(color: Colors.white)),
+          title: Text(widget.genreName, style: const TextStyle(color: Colors.white)),
+
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF87CEEB)))
           : _error != null
               ? Center(
-                  child: Text(_error!, style: const TextStyle(color: Colors.white54, fontSize: 16)),
+                  child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -115,7 +116,7 @@ class _GenreMoviesScreenState extends State<GenreMoviesScreen> {
         onTap: () => Navigator.pushNamed(context, '/details', arguments: movie),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF1B263B),
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(12),
           ),
           clipBehavior: Clip.antiAlias,
@@ -149,8 +150,8 @@ class _GenreMoviesScreenState extends State<GenreMoviesScreen> {
                     children: [
                       Text(
                         movie.title,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -172,7 +173,7 @@ class _GenreMoviesScreenState extends State<GenreMoviesScreen> {
                             const SizedBox(width: 4),
                             Text(
                               '(${movie.totalRatings})',
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                             ),
                           ],
                         ],
@@ -180,7 +181,7 @@ class _GenreMoviesScreenState extends State<GenreMoviesScreen> {
                       const SizedBox(height: 6),
                       Text(
                         movie.overview.isNotEmpty ? movie.overview : 'No overview available.',
-                        style: const TextStyle(color: Colors.white54, fontSize: 13, height: 1.3),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13, height: 1.3),
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),

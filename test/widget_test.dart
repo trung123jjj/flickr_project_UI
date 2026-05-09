@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 
 import 'package:flickr_project/main.dart';
 import 'package:flickr_project/providers/auth_provider.dart';
+import 'package:flickr_project/providers/theme_provider.dart';
 
 void main() {
   testWidgets('App renders without errors', (WidgetTester tester) async {
     final authProvider = AuthProvider();
-    await tester.pumpWidget(MyApp(authProvider: authProvider));
+    final themeProvider = ThemeProvider();
+    await tester.pumpWidget(MyApp(authProvider: authProvider, themeProvider: themeProvider));
     expect(find.byType(MaterialApp), findsOneWidget);
   });
 }

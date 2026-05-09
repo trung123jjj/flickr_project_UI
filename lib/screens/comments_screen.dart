@@ -39,7 +39,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
       if (result['success'] == true) {
         final List<dynamic> commentsData = result['data'] ?? [];
         setState(() {
-          _comments = commentsData.map((json) => Comment.fromJson(json)).toList();
+          _comments = commentsData.map((json) => Comment.fromJson(json)).toList().reversed.toList();
         });
       } else {
         print('Failed to load comments: ${result['message']}');
@@ -66,7 +66,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
         _commentController.clear();
         FocusScope.of(context).unfocus();
         setState(() {
-          _comments.insert(0, Comment(
+          _comments.add(Comment(
             username: username,
             content: content,
             timestamp: DateTime.now(),
@@ -101,7 +101,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           // Banner phim ở trên cùng
@@ -125,7 +125,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.black.withOpacity(0.4),
-                      const Color(0xFF0D1B2A),
+                      Theme.of(context).scaffoldBackgroundColor,
                     ],
                   ),
                 ),
@@ -150,7 +150,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'MOVIE FORUM',
                       style: TextStyle(
                         color: Color(0xFF87CEEB),
@@ -161,8 +161,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
                     ),
                     Text(
                       widget.movie.title,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
@@ -201,10 +201,10 @@ class _CommentsScreenState extends State<CommentsScreen> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.forum_outlined, size: 80, color: Colors.white10),
-          SizedBox(height: 16),
-          Text("No comments yet. Be the first!", style: TextStyle(color: Colors.white24)),
+        children: [
+          Icon(Icons.forum_outlined, size: 80, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3)),
+          const SizedBox(height: 16),
+          Text("No comments yet. Be the first!", style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5))),
         ],
       ),
     );
@@ -215,9 +215,9 @@ class _CommentsScreenState extends State<CommentsScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,7 +230,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                 ? CachedNetworkImageProvider(comment.avatarUrl!)
                 : const AssetImage('assets/images/profile_pic.png') as ImageProvider,
             child: (comment.avatarUrl == null || comment.avatarUrl!.isEmpty)
-                ? const Icon(Icons.person, size: 20, color: Colors.white70)
+                ? Icon(Icons.person, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant)
                 : null,
           ),
           const SizedBox(width: 12),
@@ -247,14 +247,14 @@ class _CommentsScreenState extends State<CommentsScreen> {
                     ),
                     Text(
                       "${comment.timestamp.hour}:${comment.timestamp.minute.toString().padLeft(2, '0')}",
-                      style: const TextStyle(color: Colors.white24, fontSize: 12),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5), fontSize: 12),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Text(
                   comment.content,
-                  style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.4),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15, height: 1.4),
                 ),
               ],
             ),
@@ -267,9 +267,9 @@ class _CommentsScreenState extends State<CommentsScreen> {
   Widget _buildInputArea() {
     return Container(
       padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1B263B),
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: const BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
       ),
       child: Row(
         children: [
@@ -277,15 +277,17 @@ class _CommentsScreenState extends State<CommentsScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.2),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.black.withOpacity(0.2)
+                    : Colors.grey.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(25),
               ),
               child: TextField(
                 controller: _commentController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                decoration: InputDecoration(
                   hintText: 'Add a comment...',
-                  hintStyle: TextStyle(color: Colors.white24, fontSize: 14),
+                  hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5), fontSize: 14),
                   border: InputBorder.none,
                 ),
               ),
@@ -295,7 +297,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
           CircleAvatar(
             backgroundColor: const Color(0xFFFF6B00),
             child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white, size: 20),
+              icon: Icon(Icons.send, color: Theme.of(context).colorScheme.onSurface, size: 20),
               onPressed: _addComment,
             ),
           ),

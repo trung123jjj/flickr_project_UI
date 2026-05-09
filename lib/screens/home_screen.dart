@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
 import 'dart:async';
 import '../models/movie.dart';
 import '../models/genre.dart';
@@ -23,10 +20,8 @@ class HomeScreenState extends State<HomeScreen> {
   List<Movie> _nowPlayingMovies = [];
   List<Genre> _genres = [];
   bool _isLoading = true;
-  bool _isUploadingAvatar = false;
   String? _loadError;
   final PageController _pageController = PageController(viewportFraction: 0.9);
-  final ImagePicker _picker = ImagePicker();
   final TextEditingController _searchController = TextEditingController();
   List<Movie> _searchResults = [];
   bool _isSearching = false;
@@ -268,133 +263,10 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _pickAndUploadAvatar() async {
-    await _selectAndUploadImage();
-  }
-
-  Future<void> _selectAndUploadImage() async {
-    try {
-      // Kiểm tra và xin quyền truy cập ảnh
-      Permission permission = Platform.isAndroid 
-          ? Permission.mediaLibrary 
-          : Permission.photos;
-      
-      PermissionStatus status = await permission.status;
-      
-      if (status.isDenied) {
-        status = await permission.request();
-      }
-      
-      if (status.isPermanentlyDenied) {
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              backgroundColor: const Color(0xFF1B263B),
-              title: const Text('Cần cấp quyền', style: TextStyle(color: Colors.white)),
-              content: const Text(
-                'Ứng dụng cần quyền truy cập thư viện ảnh để đổi avatar.\n\n'
-                'Vui lòng vào Cài đặt > Ứng dụng > Flickr Project > Quyền hạn để cấp quyền.',
-                style: TextStyle(color: Colors.white70),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Để sau', style: TextStyle(color: Color(0xFF87CEEB))),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    openAppSettings();
-                  },
-                  child: const Text('Mở cài đặt', style: TextStyle(color: Color(0xFF87CEEB))),
-                ),
-              ],
-            ),
-          );
-        }
-        return;
-      }
-      
-      if (!status.isGranted) {
-        throw Exception('permission_denied');
-      }
-
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 85,
-      ).catchError((e) {
-        throw e;
-      });
-
-      if (image == null) return;
-
-      setState(() => _isUploadingAvatar = true);
-
-      final result = await BackendService.updateAvatar(File(image.path));
-
-      if (result['success'] == true) {
-        if (mounted) {
-          context.read<AuthProvider>().loadUserProfile();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Avatar updated successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['message'] ?? 'Failed to update avatar'),
-              backgroundColor: const Color(0xFFFF6B00),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      String message = 'Không thể mở thư viện ảnh';
-      
-      // Kiểm tra nếu là lỗi quyền
-      final error = e.toString().toLowerCase();
-      if (error.contains('permission') || 
-          error.contains('platformexception') ||
-          error.contains('denied')) {
-        message = 'Chưa cấp quyền truy cập ảnh.\n\n'
-            'Cách khắc phục:\n'
-            '1. Gỡ cài đặt app này\n'
-            '2. Cài lại app\n'
-            '3. Khi app hỏi quyền, bấm "Cho phép"';
-      }
-      
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: const Color(0xFF1B263B),
-            title: const Text('Lỗi', style: TextStyle(color: Colors.white)),
-            content: Text(message, style: const TextStyle(color: Colors.white70)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Đã hiểu', style: TextStyle(color: Color(0xFF87CEEB))),
-              ),
-            ],
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isUploadingAvatar = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF87CEEB)))
           : _loadError != null
@@ -442,9 +314,9 @@ class HomeScreenState extends State<HomeScreen> {
                     child: Center(child: CircularProgressIndicator(color: Color(0xFF87CEEB))),
                   )
                 else if (_searchResults.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(40),
-                    child: Center(child: Text('No movies found', style: TextStyle(color: Colors.white54, fontSize: 16))),
+                  Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Center(child: Text('No movies found', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16))),
                   )
                 else
                   _buildMovieListHorizontal(_searchResults),
@@ -473,59 +345,20 @@ class HomeScreenState extends State<HomeScreen> {
         children: [
           Expanded(
             child: Text('Hello, ${auth.currentUser ?? ""}!',
-                style: const TextStyle(color: Color(0xFF87CEEB), fontSize: 24, fontWeight: FontWeight.bold)),
+                style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 24, fontWeight: FontWeight.bold)),
           ),
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.logout, color: Colors.white70),
-                onPressed: () async {
-                  await auth.logout();
-                  if (mounted) {
-                    Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-                  }
-                },
-              ),
-              GestureDetector(
-                onTap: _isUploadingAvatar ? null : _pickAndUploadAvatar,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CircleAvatar(
-                      radius: 25,
-                      backgroundColor: Colors.grey[800],
-                      backgroundImage: auth.avatarUrl != null && auth.avatarUrl!.isNotEmpty
-                          ? CachedNetworkImageProvider(auth.avatarUrl!)
-                          : const AssetImage('assets/images/profile_pic.png') as ImageProvider,
-                      child: auth.avatarUrl == null || auth.avatarUrl!.isEmpty
-                          ? const Icon(Icons.person, color: Colors.white70, size: 30)
-                          : null,
-                    ),
-                    if (_isUploadingAvatar)
-                      const CircleAvatar(
-                        radius: 25,
-                        backgroundColor: Colors.black54,
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF87CEEB),
-                          strokeWidth: 2,
-                        ),
-                      ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFF6B00),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.edit, size: 12, color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/settings'),
+            child: CircleAvatar(
+              radius: 20,
+              backgroundColor: Colors.grey[800],
+              backgroundImage: auth.avatarUrl != null && auth.avatarUrl!.isNotEmpty
+                  ? CachedNetworkImageProvider(auth.avatarUrl!)
+                  : const AssetImage('assets/images/profile_pic.png') as ImageProvider,
+              child: auth.avatarUrl == null || auth.avatarUrl!.isEmpty
+                  ? const Icon(Icons.person, color: Colors.white70, size: 22)
+                  : null,
+            ),
           ),
         ],
       ),
@@ -538,19 +371,21 @@ class HomeScreenState extends State<HomeScreen> {
       child: TextField(
         controller: _searchController,
         onChanged: _onSearchChanged,
-        style: const TextStyle(color: Colors.white),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         decoration: InputDecoration(
           hintText: 'Search movies...',
-          hintStyle: const TextStyle(color: Colors.white38),
-          prefixIcon: const Icon(Icons.search, color: Colors.white54),
+          hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurfaceVariant),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear, color: Colors.white54),
+                  icon: Icon(Icons.clear, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   onPressed: _clearSearch,
                 )
               : null,
           filled: true,
-          fillColor: const Color(0xFF1B263B),
+          fillColor: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF1B263B)
+              : const Color(0xFFE0E0E0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide.none,
@@ -563,7 +398,7 @@ class HomeScreenState extends State<HomeScreen> {
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(30, 25, 30, 15),
-      child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+      child: Text(title, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 22, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -599,10 +434,12 @@ class HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
-                      color: Colors.black.withOpacity(0.4),
-                    ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.black.withOpacity(0.4)
+                        : Colors.black.withOpacity(0.3),
+                  ),
                     child: Center(
                       child: Text(
                         genre.name,
@@ -711,7 +548,7 @@ class HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(15), child: CachedNetworkImage(imageUrl: movie.posterUrl, fit: BoxFit.cover))),
-                  Padding(padding: const EdgeInsets.only(top: 8), child: Text(movie.title, style: const TextStyle(color: Colors.white, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  Padding(padding: const EdgeInsets.only(top: 8), child: Text(movie.title, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   Row(children: [
                     const Icon(Icons.star, color: Color(0xFFFFAB40), size: 14), 
                     const SizedBox(width: 4), 
@@ -725,7 +562,7 @@ class HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 2),
                       Text(
                         '(${movie.totalRatings})',
-                        style: const TextStyle(color: Colors.white70, fontSize: 11)
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11)
                       ),
                     ],
                   ]),
