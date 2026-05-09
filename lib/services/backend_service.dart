@@ -313,4 +313,55 @@ class BackendService {
       };
     }
   }
+
+  static Future<Map<String, dynamic>> changeUsername(String currentPassword, String newUsername) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.put(
+        Uri.parse('$_baseUrl/api/users/change-username'),
+        headers: headers,
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newUsername': newUsername,
+        }),
+      );
+      final result = await _handleResponse(response);
+      if (result['success'] == true && result['data'] != null) {
+        final data = result['data'] as Map;
+        if (data['accessToken'] != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('auth_token', data['accessToken'].toString());
+          await prefs.setString('current_user', data['username'].toString());
+        }
+      }
+      return result;
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> changePassword(String currentPassword, String newPassword) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.put(
+        Uri.parse('$_baseUrl/api/users/change-password'),
+        headers: headers,
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
+  }
 }

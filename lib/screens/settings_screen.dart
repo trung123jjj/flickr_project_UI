@@ -7,6 +7,7 @@ import 'dart:io';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/backend_service.dart';
+import '../services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -18,6 +19,140 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _isUploadingAvatar = false;
+
+  Future<void> _showChangeUsernameDialog() async {
+    final currentPasswordCtrl = TextEditingController();
+    final newUsernameCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text('Change Username', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: currentPasswordCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Current Password'),
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: newUsernameCtrl,
+                decoration: const InputDecoration(labelText: 'New Username'),
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              final res = await BackendService.changeUsername(
+                currentPasswordCtrl.text,
+                newUsernameCtrl.text,
+              );
+              if (!ctx.mounted) return;
+              if (res['success'] == true) {
+                await context.read<AuthProvider>().loadSession();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Username updated!'), backgroundColor: Colors.green),
+                );
+                Navigator.pop(ctx, true);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(res['message'] ?? 'Failed'), backgroundColor: const Color(0xFFFF6B00)),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B00)),
+            child: const Text('Submit', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showChangePasswordDialog() async {
+    final currentPasswordCtrl = TextEditingController();
+    final newPasswordCtrl = TextEditingController();
+    final confirmPasswordCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text('Change Password', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: currentPasswordCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Current Password'),
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: newPasswordCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'New Password'),
+                validator: (v) => v == null || v.length < 8 ? 'At least 8 characters' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: confirmPasswordCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Confirm New Password'),
+                validator: (v) => v != newPasswordCtrl.text ? 'Passwords do not match' : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              final res = await BackendService.changePassword(
+                currentPasswordCtrl.text,
+                newPasswordCtrl.text,
+              );
+              if (!ctx.mounted) return;
+              if (res['success'] == true) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Password updated!'), backgroundColor: Colors.green),
+                );
+                Navigator.pop(ctx, true);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(res['message'] ?? 'Failed'), backgroundColor: const Color(0xFFFF6B00)),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B00)),
+            child: const Text('Submit', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _pickAndUploadAvatar() async {
     try {
@@ -182,6 +317,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.camera_alt,
             title: 'Change Avatar',
             onTap: _pickAndUploadAvatar,
+          ),
+          const Divider(color: Colors.white12, height: 1),
+          _buildMenuItem(
+            icon: Icons.person,
+            title: 'Change Username',
+            onTap: _showChangeUsernameDialog,
+          ),
+          const Divider(color: Colors.white12, height: 1),
+          _buildMenuItem(
+            icon: Icons.lock,
+            title: 'Change Password',
+            onTap: _showChangePasswordDialog,
           ),
           const Divider(color: Colors.white12, height: 1),
           _buildSwitchItem(
