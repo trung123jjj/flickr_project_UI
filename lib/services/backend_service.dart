@@ -364,4 +364,53 @@ class BackendService {
       };
     }
   }
+
+  static Future<Map<String, dynamic>> uploadCommentImage(File imageFile) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      if (token == null || token.isEmpty) {
+        return {
+          'success': false,
+          'message': 'Chưa đăng nhập',
+          'data': null,
+        };
+      }
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$_baseUrl/api/comments/upload-image'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $token';
+
+      final extension = imageFile.path.split('.').last.toLowerCase();
+      final mimeType = extension == 'png'
+          ? 'image/png'
+          : extension == 'gif'
+              ? 'image/gif'
+              : extension == 'webp'
+                  ? 'image/webp'
+                  : 'image/jpeg';
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'commentImage',
+          imageFile.path,
+          contentType: MediaType.parse(mimeType),
+        ),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      return _handleResponse(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Lỗi kết nối: $e',
+        'data': null,
+      };
+    }
+  }
 }

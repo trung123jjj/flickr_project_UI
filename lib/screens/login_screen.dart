@@ -143,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text("Don't have an account yet?", style: TextStyle(color: Colors.white70, fontSize: 15)),
                     TextButton(
                       onPressed: () => Navigator.pushNamed(context, '/signup'),
-                      child: const Text('Sign up', style: TextStyle(color: Color(0xFF87CEEB), fontSize: 15, fontWeight: FontWeight.bold)),
+                      child: const Text('Sign up', style: TextStyle(color: Color(0xFFE53935), fontSize: 15, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),

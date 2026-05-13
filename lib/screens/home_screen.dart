@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
@@ -63,24 +64,6 @@ class HomeScreenState extends State<HomeScreen> {
           ? BackendService.getBatchMovieRatings(allMovieIds.toList())
           : Future.value(<String, dynamic>{'success': false, 'data': null});
 
-      final usedBackdrops = <String>{};
-      for (var genre in genresList) {
-        try {
-          final potentialBackdrops = await TmdbService.getBackdropListForGenre(genre.id);
-          String? chosenBackdrop;
-          for (var url in potentialBackdrops) {
-            if (!usedBackdrops.contains(url)) {
-              chosenBackdrop = url;
-              usedBackdrops.add(url);
-              break;
-            }
-          }
-          genre.backdropUrl = chosenBackdrop ?? (potentialBackdrops.isNotEmpty ? potentialBackdrops[0] : null);
-        } catch (e) {
-          print('Error loading backdrop for genre ${genre.id}: $e');
-        }
-      }
-
       Map<int, dynamic> ratings = {};
       final result = await ratingsFuture;
       if (result['success'] == true) {
@@ -130,71 +113,27 @@ class HomeScreenState extends State<HomeScreen> {
     final movieId = result['movieId'] as int;
     final avgRating = (result['averageRating'] as num?)?.toDouble();
     final totalRatings = result['totalRatings'] as int?;
-    setState(() {
-      _popularMovies = _popularMovies.map((m) {
-        if (m.id == movieId) {
-          return Movie(
-            id: m.id, title: m.title, overview: m.overview,
-            posterPath: m.posterPath, backdropPath: m.backdropPath,
-            voteAverage: m.voteAverage, releaseDate: m.releaseDate,
-            genreIds: m.genreIds,
-            averageRating: avgRating ?? m.averageRating,
-            totalRatings: totalRatings ?? m.totalRatings,
-          );
-        }
-        return m;
-      }).toList();
-      _nowPlayingMovies = _nowPlayingMovies.map((m) {
-        if (m.id == movieId) {
-          return Movie(
-            id: m.id, title: m.title, overview: m.overview,
-            posterPath: m.posterPath, backdropPath: m.backdropPath,
-            voteAverage: m.voteAverage, releaseDate: m.releaseDate,
-            genreIds: m.genreIds,
-            averageRating: avgRating ?? m.averageRating,
-            totalRatings: totalRatings ?? m.totalRatings,
-          );
-        }
-        return m;
-      }).toList();
-    });
-  }
 
-  Future<void> _refreshRatingsOnly() async {
-    final allMovieIds = <int>{};
-    for (var m in _popularMovies) { allMovieIds.add(m.id); }
-    for (var m in _nowPlayingMovies) { allMovieIds.add(m.id); }
-    if (allMovieIds.isEmpty) return;
-
-    final result = await BackendService.getBatchMovieRatings(allMovieIds.toList());
-    if (!mounted) return;
-
-    Map<int, dynamic> ratings = {};
-    if (result['success'] == true) {
-      final data = result['data'];
-      if (data != null) {
-        (data as Map).forEach((key, value) {
-          ratings[int.parse(key.toString())] = value;
-        });
+    final updateList = (List<Movie> list) => list.map((m) {
+      if (m.id == movieId) {
+        return Movie(
+          id: m.id, title: m.title, overview: m.overview,
+          posterPath: m.posterPath, backdropPath: m.backdropPath,
+          voteAverage: m.voteAverage, releaseDate: m.releaseDate,
+          genreIds: m.genreIds,
+          averageRating: avgRating ?? m.averageRating,
+          totalRatings: totalRatings ?? m.totalRatings,
+        );
       }
-    }
+      return m;
+    }).toList();
 
-    Movie updateMovieRating(Movie movie, Map<int, dynamic> ratings) {
-      final r = ratings[movie.id];
-      return Movie(
-        id: movie.id, title: movie.title, overview: movie.overview,
-        posterPath: movie.posterPath, backdropPath: movie.backdropPath,
-        voteAverage: movie.voteAverage, releaseDate: movie.releaseDate,
-        genreIds: movie.genreIds,
-        averageRating: r != null ? (r['averageScore'] ?? 0).toDouble() : null,
-        totalRatings: r != null ? r['totalRatings'] ?? 0 : 0,
-      );
+    if (mounted) {
+      setState(() {
+        _popularMovies = updateList(_popularMovies);
+        _nowPlayingMovies = updateList(_nowPlayingMovies);
+      });
     }
-
-    setState(() {
-      _popularMovies = _popularMovies.map((m) => updateMovieRating(m, ratings)).toList();
-      _nowPlayingMovies = _nowPlayingMovies.map((m) => updateMovieRating(m, ratings)).toList();
-    });
   }
 
   void _onSearchChanged(String query) {
@@ -265,104 +204,72 @@ class HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF87CEEB)))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFE53935)))
           : _loadError != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.cloud_off, size: 64, color: Colors.white24),
-                        const SizedBox(height: 16),
-                        Text(
-                          _loadError!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white54, fontSize: 16),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _isLoading = true;
-                              _loadError = null;
-                            });
-                            _loadAllData();
-                          },
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B00)),
-                          child: const Text('Retry', style: TextStyle(color: Colors.white)),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
+              ? _buildErrorView()
               : SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              _buildSearchBar(),
-              if (_isSearching) ...[
-                if (_isSearchLoading)
-                  const Padding(
-                    padding: EdgeInsets.all(40),
-                    child: Center(child: CircularProgressIndicator(color: Color(0xFF87CEEB))),
-                  )
-                else if (_searchResults.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(40),
-                    child: Center(child: Text('No movies found', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16))),
-                  )
-                else
-                  _buildMovieListHorizontal(_searchResults),
-              ] else ...[
-                _buildSectionTitle('Now Playing'),
-                _buildNowPlayingLarge(_nowPlayingMovies),
-                _buildSectionTitle('Popular'),
-                _buildMovieListHorizontal(_popularMovies),
-                _buildSectionTitle('Genres'),
-                _buildGenreListHorizontal(_genres),
-              ],
-              const SizedBox(height: 40),
-            ],
-          ),
+                  child: CustomScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    slivers: [
+                      const SliverToBoxAdapter(child: _HomeHeader()),
+                      SliverToBoxAdapter(child: _buildSearchBar()),
+                      if (_isSearching)
+                        _buildSearchSliver()
+                      else ...[
+                        const SliverToBoxAdapter(child: _SectionTitle(title: 'Now Playing')),
+                        SliverToBoxAdapter(child: _buildNowPlayingLarge(_nowPlayingMovies)),
+                        const SliverToBoxAdapter(child: _SectionTitle(title: 'Popular')),
+                        SliverToBoxAdapter(child: _buildMovieListHorizontal(_popularMovies)),
+                        const SliverToBoxAdapter(child: _SectionTitle(title: 'Genres')),
+                        SliverToBoxAdapter(child: _buildGenreListHorizontal(_genres)),
+                      ],
+                      const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                    ],
+                  ),
+                ),
+      ),
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cloud_off, size: 64, color: Colors.white24),
+            const SizedBox(height: 16),
+            Text(_loadError!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 16)),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                setState(() { _isLoading = true; _loadError = null; });
+                _loadAllData();
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B00)),
+              child: const Text('Retry', style: TextStyle(color: Colors.white)),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    final auth = context.watch<AuthProvider>();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 30),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text('Hello, ${auth.currentUser ?? ""}!',
-                style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 24, fontWeight: FontWeight.bold)),
-          ),
-          GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/settings'),
-            child: CircleAvatar(
-              radius: 20,
-              backgroundColor: Colors.grey[800],
-              backgroundImage: auth.avatarUrl != null && auth.avatarUrl!.isNotEmpty
-                  ? CachedNetworkImageProvider(auth.avatarUrl!)
-                  : const AssetImage('assets/images/profile_pic.png') as ImageProvider,
-              child: auth.avatarUrl == null || auth.avatarUrl!.isEmpty
-                  ? const Icon(Icons.person, color: Colors.white70, size: 22)
-                  : null,
-            ),
-          ),
-        ],
-      ),
-    );
+  Widget _buildSearchSliver() {
+    if (_isSearchLoading) return const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: Color(0xFFE53935)))));
+    if (_searchResults.isEmpty) return const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(40), child: Center(child: Text('No movies found', style: TextStyle(color: Colors.white54, fontSize: 16)))));
+    return SliverToBoxAdapter(child: _buildMovieListHorizontal(_searchResults));
   }
 
   Widget _buildSearchBar() {
@@ -383,22 +290,10 @@ class HomeScreenState extends State<HomeScreen> {
                 )
               : null,
           filled: true,
-          fillColor: Theme.of(context).brightness == Brightness.dark
-              ? const Color(0xFF1B263B)
-              : const Color(0xFFE0E0E0),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide.none,
-          ),
+          fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF333333) : const Color(0xFFE0E0E0),
+          border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(15)), borderSide: BorderSide.none),
         ),
       ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(30, 25, 30, 15),
-      child: Text(title, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 22, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -409,111 +304,28 @@ class HomeScreenState extends State<HomeScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 24),
         itemCount: genres.length,
+        itemExtent: 216,
         itemBuilder: (context, index) {
-          final genre = genres[index];
-          return GestureDetector(
-            onTap: () {
-              Navigator.pushNamed(context, '/genreMovies', arguments: {
-                'genreId': genre.id,
-                'genreName': genre.name,
-              });
-            },
-            child: Container(
-              width: 200,
-              margin: const EdgeInsets.only(right: 16),
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(15),
-                    child: CachedNetworkImage(
-                      imageUrl: genre.backdropUrl ?? '',
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      errorWidget: (context, url, error) => Container(color: Colors.blueGrey),
-                    ),
-                  ),
-                  Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(15),
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.black.withOpacity(0.4)
-                        : Colors.black.withOpacity(0.3),
-                  ),
-                    child: Center(
-                      child: Text(
-                        genre.name,
-                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+          return RepaintBoundary(child: _GenreCard(genre: genres[index]));
         },
       ),
     );
   }
 
   Widget _buildNowPlayingLarge(List<Movie> movies) {
+    final itemCount = movies.length > 5 ? 5 : movies.length;
     return SizedBox(
       height: 400,
       child: PageView.builder(
         controller: _pageController,
-        itemCount: movies.length > 5 ? 5 : movies.length,
+        itemCount: itemCount,
         itemBuilder: (context, index) {
-          final movie = movies[index];
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: GestureDetector(
-                onTap: () async {
-                  final result = await Navigator.pushNamed(context, '/details', arguments: movie);
-                  if (!mounted) return;
-                  if (result is Map && result['updatedRating'] == true) {
-                    _applyRatingUpdate(result);
-                    _refreshRatingsOnly();
-                  } else {
-                    _loadAllData();
-                  }
-                },
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CachedNetworkImage(imageUrl: movie.posterUrl, fit: BoxFit.cover),
-                    Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.8)]))),
-                    Positioned(
-                      bottom: 25, left: 20, right: 20,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(movie.title, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                        Row(children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 20),
-                          const SizedBox(width: 6),
-                          Text(
-                            movie.averageRating != null && movie.averageRating! > 0
-                                ? movie.averageRating!.toStringAsFixed(1)
-                                : '0.0',
-                            style: const TextStyle(color: Colors.amber, fontSize: 18)
-                          ),
-                          if (movie.totalRatings != null && movie.totalRatings! > 0) ...[
-                            const SizedBox(width: 4),
-                            Text(
-                              '(${movie.totalRatings})',
-                              style: const TextStyle(color: Colors.white70, fontSize: 14)
-                            ),
-                          ],
-                        ]),
-                        ],
-                      ),
-                    )
-                  ],
-                ),
-              ),
+          return RepaintBoundary(
+            child: _NowPlayingCard(
+              movie: movies[index],
+              onRatingUpdate: (movieId, avgRating, totalRatings) {
+                if (mounted) _applyRatingUpdate({'movieId': movieId, 'averageRating': avgRating, 'totalRatings': totalRatings});
+              },
             ),
           );
         },
@@ -528,49 +340,218 @@ class HomeScreenState extends State<HomeScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 24),
         itemCount: movies.length,
+        itemExtent: 156,
         itemBuilder: (context, index) {
-          final movie = movies[index];
-          return GestureDetector(
-             onTap: () async {
-                final result = await Navigator.pushNamed(context, '/details', arguments: movie);
-                if (!mounted) return;
-                if (result is Map && result['updatedRating'] == true) {
-                  _applyRatingUpdate(result);
-                  _refreshRatingsOnly();
-                } else {
-                  _loadAllData();
-                }
+          return RepaintBoundary(
+            child: _MovieCard(
+              movie: movies[index],
+              onRatingUpdate: (movieId, avgRating, totalRatings) {
+                if (mounted) _applyRatingUpdate({'movieId': movieId, 'averageRating': avgRating, 'totalRatings': totalRatings});
               },
-            child: Container(
-              width: 140,
-              margin: const EdgeInsets.only(right: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(15), child: CachedNetworkImage(imageUrl: movie.posterUrl, fit: BoxFit.cover))),
-                  Padding(padding: const EdgeInsets.only(top: 8), child: Text(movie.title, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                  Row(children: [
-                    const Icon(Icons.star, color: Color(0xFFFFAB40), size: 14), 
-                    const SizedBox(width: 4), 
-                    Text(
-                      movie.averageRating != null && movie.averageRating! > 0
-                          ? movie.averageRating!.toStringAsFixed(1)
-                          : '0.0',
-                      style: const TextStyle(color: Color(0xFFFFAB40), fontSize: 13)
-                    ),
-                    if (movie.totalRatings != null && movie.totalRatings! > 0) ...[
-                      const SizedBox(width: 2),
-                      Text(
-                        '(${movie.totalRatings})',
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11)
-                      ),
-                    ],
-                  ]),
-                ],
-              ),
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  const _SectionTitle({required this.title});
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(30, 25, 30, 15),
+      child: Text(title, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 22, fontWeight: FontWeight.bold)),
+    );
+  }
+}
+
+typedef _RatingUpdateCallback = void Function(int movieId, double? avgRating, int? totalRatings);
+
+class _NowPlayingCard extends StatelessWidget {
+  final Movie movie;
+  final _RatingUpdateCallback onRatingUpdate;
+
+  const _NowPlayingCard({required this.movie, required this.onRatingUpdate});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: GestureDetector(
+          onTap: () async {
+            final result = await Navigator.pushNamed(context, '/details', arguments: movie);
+            if (context.mounted && result is Map && result['updatedRating'] == true) {
+              Future.delayed(const Duration(milliseconds: 350), () {
+                if (context.mounted) {
+                  onRatingUpdate(result['movieId'] as int, (result['averageRating'] as num?)?.toDouble(), result['totalRatings'] as int?);
+                }
+              });
+            }
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CachedNetworkImage(
+                imageUrl: movie.getPosterUrl('w500'),
+                fit: BoxFit.cover,
+                memCacheWidth: 600,
+                placeholder: (context, url) => Container(color: Colors.grey[900]),
+                errorWidget: (context, url, error) => const Icon(Icons.error),
+              ),
+              Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.8)]))),
+              Positioned(
+                bottom: 25, left: 20, right: 20,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(movie.title, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  Row(children: [
+                    const Icon(Icons.star, color: Colors.amber, size: 20),
+                    const SizedBox(width: 6),
+                    Text(movie.averageRating != null && movie.averageRating! > 0 ? movie.averageRating!.toStringAsFixed(1) : '0.0', style: const TextStyle(color: Colors.amber, fontSize: 18)),
+                    if (movie.totalRatings != null && movie.totalRatings! > 0) ...[
+                      const SizedBox(width: 4),
+                      Text('(${movie.totalRatings})', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                    ],
+                  ]),
+                  ],
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MovieCard extends StatelessWidget {
+  final Movie movie;
+  final _RatingUpdateCallback onRatingUpdate;
+
+  const _MovieCard({required this.movie, required this.onRatingUpdate});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final result = await Navigator.pushNamed(context, '/details', arguments: movie);
+        if (context.mounted && result is Map && result['updatedRating'] == true) {
+          Future.delayed(const Duration(milliseconds: 350), () {
+            if (context.mounted) {
+              onRatingUpdate(result['movieId'] as int, (result['averageRating'] as num?)?.toDouble(), result['totalRatings'] as int?);
+            }
+          });
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: CachedNetworkImage(
+                  imageUrl: movie.getPosterUrl('w342'),
+                  fit: BoxFit.cover,
+                  memCacheWidth: 300,
+                  placeholder: (context, url) => Container(color: Colors.grey[900]),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                ),
+              ),
+            ),
+            Padding(padding: const EdgeInsets.only(top: 8), child: Text(movie.title, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
+            Row(children: [
+              const Icon(Icons.star, color: Color(0xFFFFAB40), size: 14),
+              const SizedBox(width: 4),
+              Text(movie.averageRating != null && movie.averageRating! > 0 ? movie.averageRating!.toStringAsFixed(1) : '0.0', style: const TextStyle(color: Color(0xFFFFAB40), fontSize: 13)),
+              if (movie.totalRatings != null && movie.totalRatings! > 0) ...[
+                const SizedBox(width: 2),
+                Text('(${movie.totalRatings})', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11)),
+              ],
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 30),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text('Hello, ${auth.currentUser ?? ""}!',
+                style: const TextStyle(color: Color(0xFFE53935), fontSize: 24, fontWeight: FontWeight.bold)),
+          ),
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/settings'),
+            child: CircleAvatar(
+              radius: 20,
+              backgroundColor: Colors.grey[800],
+              backgroundImage: auth.avatarUrl != null && auth.avatarUrl!.isNotEmpty ? CachedNetworkImageProvider(auth.avatarUrl!) : null,
+              child: auth.avatarUrl == null || auth.avatarUrl!.isEmpty ? const Icon(Icons.person, color: Colors.white70, size: 22) : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GenreCard extends StatefulWidget {
+  final Genre genre;
+  const _GenreCard({required this.genre});
+  @override
+  State<_GenreCard> createState() => _GenreCardState();
+}
+
+class _GenreCardState extends State<_GenreCard> {
+  String? _backdropUrl;
+  @override
+  void initState() {
+    super.initState();
+    _loadBackdrop();
+  }
+  Future<void> _loadBackdrop() async {
+    try {
+      final backdrops = await TmdbService.getBackdropListForGenre(widget.genre.id);
+      if (mounted) setState(() => _backdropUrl = backdrops.isNotEmpty ? backdrops[0] : null);
+    } catch (_) {}
+  }
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(context, '/genreMovies', arguments: {'genreId': widget.genre.id, 'genreName': widget.genre.name});
+      },
+      child: Container(
+        width: 200,
+        margin: const EdgeInsets.only(right: 16),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Stack(
+            children: [
+              if (_backdropUrl != null) CachedNetworkImage(imageUrl: _backdropUrl!, width: double.infinity, height: double.infinity, fit: BoxFit.cover, memCacheWidth: 400),
+              Container(decoration: BoxDecoration(color: Colors.black.withOpacity(0.4)), child: Center(child: Text(widget.genre.name, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)))),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
@@ -23,7 +24,8 @@ void main() async {
     print("Warning: .env file not found");
   }
 
-  await TmdbService.initGenres();
+  // Load genres trong background, không block UI
+  TmdbService.initGenres();
 
   final authProvider = AuthProvider();
   await authProvider.loadSession();
@@ -49,15 +51,23 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
-          final auth = context.watch<AuthProvider>();
+          const pageTransitions = PageTransitionsTheme(
+            builders: {
+              TargetPlatform.android: ZoomPageTransitionsBuilder(), // Hiệu ứng thu phóng mượt hơn trên Android
+              TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+              TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+            },
+          );
 
           final darkTheme = ThemeData(
             brightness: Brightness.dark,
-            scaffoldBackgroundColor: const Color(0xFF0D1B2A),
-            cardColor: const Color(0xFF1B263B),
+            scaffoldBackgroundColor: Colors.black,
+            pageTransitionsTheme: pageTransitions,
+            useMaterial3: true,
+            cardColor: const Color(0xFF1A1A1A),
             dividerColor: Colors.white12,
             appBarTheme: const AppBarTheme(
-              backgroundColor: Color(0xFF1B263B),
+              backgroundColor: Color(0xFF1A1A1A),
               iconTheme: IconThemeData(color: Colors.white),
               titleTextStyle: TextStyle(color: Colors.white, fontSize: 20),
             ),
@@ -71,6 +81,7 @@ class MyApp extends StatelessWidget {
           final lightTheme = ThemeData(
             brightness: Brightness.light,
             scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+            pageTransitionsTheme: pageTransitions,
             cardColor: Colors.white,
             dividerColor: Colors.black12,
             appBarTheme: const AppBarTheme(
@@ -85,13 +96,25 @@ class MyApp extends StatelessWidget {
             ),
           );
 
+          SystemChrome.setSystemUIOverlayStyle(
+            themeProvider.isDarkMode
+                ? const SystemUiOverlayStyle(
+                    statusBarColor: Colors.transparent,
+                    statusBarIconBrightness: Brightness.light,
+                  )
+                : const SystemUiOverlayStyle(
+                    statusBarColor: Colors.transparent,
+                    statusBarIconBrightness: Brightness.dark,
+                  ),
+          );
+
           return MaterialApp(
             title: 'Flickr App',
             debugShowCheckedModeBanner: false,
             theme: lightTheme,
             darkTheme: darkTheme,
             themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-            initialRoute: auth.isLoggedIn ? '/home' : '/',
+            initialRoute: authProvider.isLoggedIn ? '/home' : '/',
             onGenerateRoute: (settings) {
               Widget page;
 
@@ -128,25 +151,9 @@ class MyApp extends StatelessWidget {
                 }
               }
 
-              return PageRouteBuilder(
+              return MaterialPageRoute(
                 settings: settings,
-                pageBuilder: (context, animation, secondaryAnimation) => page,
-                transitionsBuilder:
-                    (context, animation, secondaryAnimation, child) {
-                  const begin = Offset(1.0, 0.0);
-                  const end = Offset.zero;
-                  const curve = Curves.easeInOutQuart;
-                  var tween =
-                      Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: animation.drive(tween),
-                      child: child,
-                    ),
-                  );
-                },
-                transitionDuration: const Duration(milliseconds: 400),
+                builder: (_) => page,
               );
             },
           );

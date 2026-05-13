@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -181,14 +182,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Để sau', style: TextStyle(color: Color(0xFF87CEEB))),
+                  child: const Text('Để sau', style: TextStyle(color: Color(0xFFE53935))),
                 ),
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
                     openAppSettings();
                   },
-                  child: const Text('Mở cài đặt', style: TextStyle(color: Color(0xFF87CEEB))),
+                  child: const Text('Mở cài đặt', style: TextStyle(color: Color(0xFFE53935))),
                 ),
               ],
             ),
@@ -237,7 +238,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            backgroundColor: const Color(0xFF1B263B),
+            backgroundColor: const Color(0xFF1A1A1A),
             title: const Text('Lỗi', style: TextStyle(color: Colors.white)),
             content: Text(
               'Không thể mở thư viện ảnh',
@@ -246,7 +247,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Đã hiểu', style: TextStyle(color: Color(0xFF87CEEB))),
+                child: const Text('Đã hiểu', style: TextStyle(color: Color(0xFFE53935))),
               ),
             ],
           ),
@@ -267,51 +268,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final themeProvider = context.watch<ThemeProvider>();
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1B263B),
-        title: const Text('Settings', style: TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
+      appBar: const _SettingsAppBar(),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 20),
         children: [
-          Center(
-            child: Stack(
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.grey[800],
-                  backgroundImage: auth.avatarUrl != null && auth.avatarUrl!.isNotEmpty
-                      ? CachedNetworkImageProvider(auth.avatarUrl!)
-                      : const AssetImage('assets/images/profile_pic.png') as ImageProvider,
-                  child: auth.avatarUrl == null || auth.avatarUrl!.isEmpty
-                      ? const Icon(Icons.person, color: Colors.white70, size: 50)
-                      : null,
-                ),
-                if (_isUploadingAvatar)
-                  const CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.black54,
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF87CEEB),
-                      strokeWidth: 2,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              auth.currentUser ?? '',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-          ),
+          _UserInfoSection(isUploadingAvatar: _isUploadingAvatar),
           const SizedBox(height: 32),
           _buildMenuItem(
             icon: Icons.camera_alt,
@@ -331,12 +294,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _showChangePasswordDialog,
           ),
           const Divider(color: Colors.white12, height: 1),
-          _buildSwitchItem(
-            icon: Icons.dark_mode,
-            title: 'Dark Mode',
-            value: themeProvider.isDarkMode,
-            onChanged: (_) => themeProvider.toggleTheme(),
-          ),
+          const _ThemeModeTile(),
           const Divider(color: Colors.white12, height: 1),
           _buildMenuItem(
             icon: Icons.logout,
@@ -356,7 +314,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Color? textColor,
   }) {
     return ListTile(
-      leading: Icon(icon, color: const Color(0xFF87CEEB)),
+      leading: Icon(icon, color: const Color(0xFFE53935)),
       title: Text(title, style: TextStyle(color: textColor ?? Theme.of(context).colorScheme.onSurface, fontSize: 16)),
       trailing: const Icon(Icons.chevron_right, color: Colors.white38),
       onTap: onTap,
@@ -370,12 +328,104 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required ValueChanged<bool> onChanged,
   }) {
     return ListTile(
-      leading: Icon(icon, color: const Color(0xFF87CEEB)),
+      leading: Icon(icon, color: const Color(0xFFE53935)),
       title: Text(title, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 16)),
       trailing: Switch(
         value: value,
-        activeColor: const Color(0xFF87CEEB),
+        activeColor: const Color(0xFFE53935),
         onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+class _SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _SettingsAppBar();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    return AppBar(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      elevation: 0,
+      centerTitle: false,
+      title: const Text(
+        'Settings',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: themeProvider.isDarkMode ? Brightness.light : Brightness.dark,
+        statusBarBrightness: themeProvider.isDarkMode ? Brightness.dark : Brightness.light,
+      ),
+    );
+  }
+}
+
+class _UserInfoSection extends StatelessWidget {
+  final bool isUploadingAvatar;
+
+  const _UserInfoSection({required this.isUploadingAvatar});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    return Column(
+      children: [
+        Center(
+          child: Stack(
+            children: [
+              CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.grey[800],
+                backgroundImage: auth.avatarUrl != null && auth.avatarUrl!.isNotEmpty
+                    ? CachedNetworkImageProvider(auth.avatarUrl!)
+                    : null,
+                child: auth.avatarUrl == null || auth.avatarUrl!.isEmpty
+                    ? const Icon(Icons.person, color: Colors.white70, size: 50)
+                    : null,
+              ),
+              if (isUploadingAvatar)
+                const CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.black54,
+                  child: CircularProgressIndicator(
+                    color: Color(0xFFE53935),
+                    strokeWidth: 2,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: Text(
+            auth.currentUser ?? '',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ThemeModeTile extends StatelessWidget {
+  const _ThemeModeTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    return ListTile(
+      leading: const Icon(Icons.dark_mode, color: Color(0xFFE53935)),
+      title: const Text('Dark Mode', style: TextStyle(fontSize: 16)),
+      trailing: Switch(
+        value: themeProvider.isDarkMode,
+        activeColor: const Color(0xFFE53935),
+        onChanged: (_) => themeProvider.toggleTheme(),
       ),
     );
   }

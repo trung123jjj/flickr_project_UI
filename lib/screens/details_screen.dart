@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../models/movie.dart';
 import '../models/cast.dart';
 import '../services/tmdb_service.dart';
@@ -16,6 +16,8 @@ class DetailsScreen extends StatefulWidget {
 }
 
 class _DetailsScreenState extends State<DetailsScreen> {
+  static final Map<int, double> _userRatingCache = {};
+
   bool _isExpanded = false;
   List<Cast> _cast = [];
   bool _isLoadingCast = true;
@@ -24,17 +26,15 @@ class _DetailsScreenState extends State<DetailsScreen> {
   double? _userRating;
   double? _averageRating;
   int _totalRatings = 0;
-  bool _isLoadingRating = true;
   bool _ratingUpdated = false;
-  YoutubePlayerController? _youtubeController;
-  bool _isLoadingTrailer = true;
-  String? _trailerError;
 
   @override
   void initState() {
     super.initState();
+    _averageRating = widget.movie.averageRating;
+    _totalRatings = widget.movie.totalRatings ?? 0;
+    _userRating = _userRatingCache[widget.movie.id];
     _loadCast();
-    _loadTrailer();
     _loadRating();
   }
 
@@ -43,24 +43,18 @@ class _DetailsScreenState extends State<DetailsScreen> {
       final result = await BackendService.getMovieRating(widget.movie.id);
       if (mounted && result['success'] == true) {
         final data = result['data'];
+        final userScore = data['userScore']?.toDouble();
+        if (userScore != null) {
+          _userRatingCache[widget.movie.id] = userScore;
+        }
         setState(() {
           _averageRating = (data['averageScore'] ?? 0).toDouble();
           _totalRatings = data['totalRatings'] ?? 0;
-          _userRating = data['userScore']?.toDouble();
-          _isLoadingRating = false;
-        });
-      } else {
-        setState(() {
-          _averageRating = widget.movie.averageRating;
-          _totalRatings = widget.movie.totalRatings ?? 0;
-          _isLoadingRating = false;
+          _userRating = userScore ?? _userRating;
         });
       }
     } catch (e) {
       print('DetailsScreen._loadRating error: $e');
-      if (mounted) setState(() {
-        _isLoadingRating = false;
-      });
     }
   }
 
@@ -72,11 +66,20 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
     if (mounted) {
       if (result['success'] == true) {
-        await _loadRating();
+        _userRatingCache[widget.movie.id] = score;
+        final oldTotal = _totalRatings;
+        final oldAvg = _averageRating ?? 0;
+        final oldSum = oldAvg * oldTotal;
+        final newTotal = _userRating == null ? oldTotal + 1 : oldTotal;
+        final oldUserScore = _userRating ?? 0;
+        final newAvg = (oldSum - oldUserScore + score) / newTotal;
         setState(() {
           _userRating = score;
+          _averageRating = double.parse(newAvg.toStringAsFixed(1));
+          _totalRatings = newTotal;
           _ratingUpdated = true;
         });
+        _loadRating();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -141,7 +144,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
 
   @override
   void dispose() {
-    _youtubeController?.dispose();
     super.dispose();
   }
 
@@ -164,31 +166,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
     }
   }
 
-  Future<void> _loadTrailer() async {
-    try {
-      final trailerKey = await TmdbService.getMovieTrailerKey(widget.movie.id);
-      if (mounted) {
-        if (trailerKey != null && trailerKey.isNotEmpty) {
-          _youtubeController = YoutubePlayerController(
-            initialVideoId: trailerKey,
-            flags: const YoutubePlayerFlags(
-              autoPlay: false,
-              mute: false,
-              disableDragSeek: false,
-            ),
-          );
-        }
-        setState(() => _isLoadingTrailer = false);
-      }
-    } catch (e) {
-      print('DetailsScreen._loadTrailer error: $e');
-      if (mounted) setState(() {
-        _isLoadingTrailer = false;
-        _trailerError = 'Failed to load trailer';
-      });
-    }
-  }
-
   void _showActorDetails(Cast actor) {
     showModalBottomSheet(
       context: context,
@@ -198,7 +175,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
       builder: (bottomSheetContext) => Container(
         margin: const EdgeInsets.only(top: 80),
         decoration: const BoxDecoration(
-          color: Color(0xFF1B263B),
+          color: Color(0xFF1A1A1A),
           borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
         ),
         child: FutureBuilder<Map<String, dynamic>?>(
@@ -211,14 +188,14 @@ class _DetailsScreenState extends State<DetailsScreen> {
                 child: Column(
                   children: [
                     _buildHandle(bottomSheetContext),
-                    const Expanded(child: Center(child: CircularProgressIndicator(color: Color(0xFF87CEEB)))),
+                    const Expanded(child: Center(child: CircularProgressIndicator(color: Color(0xFFE53935)))),
                   ],
                 ),
               );
             }
             final details = snapshot.data;
-            final biography = (details?['biography'] as String?)?.isNotEmpty == true 
-                ? details!['biography'] 
+            final biography = (details?['biography'] as String?)?.isNotEmpty == true
+                ? details!['biography']
                 : "No biography available for this actor.";
 
             return Container(
@@ -241,7 +218,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(actor.name, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 22, fontWeight: FontWeight.bold)),
-                                Text("as ${actor.character}", style: const TextStyle(color: Color(0xFF87CEEB), fontSize: 16)),
+                                Text("as ${actor.character}", style: const TextStyle(color: Color(0xFFE53935), fontSize: 16)),
                               ],
                             ),
                           ),
@@ -285,31 +262,46 @@ class _DetailsScreenState extends State<DetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final genreNames = TmdbService.getGenreNames(widget.movie.genreIds);
-    
+
     return PopScope(
       canPop: !_ratingUpdated,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _ratingUpdated) {
-          Navigator.pop(context, {
-            'updatedRating': true,
-            'movieId': widget.movie.id,
-            'averageRating': _averageRating,
-            'totalRatings': _totalRatings,
-          });
+        if (!didPop) {
+          if (_ratingUpdated) {
+            Navigator.pop(context, {
+              'updatedRating': true,
+              'movieId': widget.movie.id,
+              'averageRating': _averageRating,
+              'totalRatings': _totalRatings,
+            });
+          } else {
+            Navigator.pop(context);
+          }
         }
       },
-      child: YoutubePlayerBuilder(
-      player: YoutubePlayer(
-        controller: _youtubeController ?? YoutubePlayerController(initialVideoId: ''),
-      ),
-      builder: (context, player) {
-        return Scaffold(
+      child: Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: CustomScrollView(
             slivers: [
               SliverAppBar(
-                expandedHeight: 300, pinned: true, backgroundColor: const Color(0xFF0D1B2A),
-                flexibleSpace: FlexibleSpaceBar(background: CachedNetworkImage(imageUrl: widget.movie.backdropUrl, fit: BoxFit.cover)),
+                expandedHeight: 300,
+                pinned: false,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                systemOverlayStyle: const SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
+                  statusBarIconBrightness: Brightness.light,
+                  statusBarBrightness: Brightness.dark,
+                ),
+                flexibleSpace: FlexibleSpaceBar(
+                  background: RepaintBoundary(
+                    child: CachedNetworkImage(
+                      imageUrl: widget.movie.getBackdropUrl('w780'),
+                      fit: BoxFit.cover,
+                      memCacheWidth: 800, // Tối ưu kích thước decode
+                    ),
+                  ),
+                ),
               ),
               SliverToBoxAdapter(
                 child: Padding(
@@ -326,9 +318,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                             children: [
                               const Icon(Icons.star, color: Colors.amber, size: 22),
                               const SizedBox(width: 6),
-                              _isLoadingRating
-                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber))
-                                  : Text(
+                              Text(
                                       _averageRating != null && _averageRating! > 0
                                           ? _averageRating!.toStringAsFixed(1)
                                           : '0.0',
@@ -343,9 +333,9 @@ class _DetailsScreenState extends State<DetailsScreen> {
                         ),
                         const SizedBox(width: 16),
                         if (_userRating != null) ...[
-                          const Icon(Icons.person, color: Color(0xFF87CEEB), size: 18),
+                          const Icon(Icons.person, color: Color(0xFFE53935), size: 18),
                           const SizedBox(width: 4),
-                          Text('Yours: ${_userRating!.toStringAsFixed(1)}', style: const TextStyle(color: Color(0xFF87CEEB), fontSize: 16)),
+                          Text('Yours: ${_userRating!.toStringAsFixed(1)}', style: const TextStyle(color: Color(0xFFE53935), fontSize: 16)),
                           const SizedBox(width: 16),
                         ],
                         const Icon(Icons.calendar_today, color: Colors.white70, size: 18),
@@ -355,11 +345,11 @@ class _DetailsScreenState extends State<DetailsScreen> {
                       const SizedBox(height: 20),
                       Wrap(spacing: 8, runSpacing: 8, children: genreNames.map((name) => _buildGenreChip(name)).toList()),
                       const SizedBox(height: 30),
-                      const Text('Overview', style: TextStyle(color: Color(0xFF87CEEB), fontSize: 22, fontWeight: FontWeight.bold)),
+                      const Text('Overview', style: TextStyle(color: Color(0xFFE53935), fontSize: 22, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
                       _buildOverview(),
                       const SizedBox(height: 35),
-                      const Text('Cast', style: TextStyle(color: Color(0xFF87CEEB), fontSize: 22, fontWeight: FontWeight.bold)),
+                      const Text('Cast', style: TextStyle(color: Color(0xFFE53935), fontSize: 22, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 15),
                       _isLoadingCast
                           ? const Center(child: CircularProgressIndicator())
@@ -371,25 +361,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                   ),
                                 )
                               : _buildCastList(),
-                      const SizedBox(height: 35),
-                      const Text('Trailer', style: TextStyle(color: Color(0xFF87CEEB), fontSize: 22, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 15),
-                      _isLoadingTrailer
-                          ? const Center(child: CircularProgressIndicator())
-                          : _trailerError != null
-                              ? Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 20),
-                                  child: Center(
-                                    child: Text(_trailerError!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                                  ),
-                                )
-                              : _youtubeController != null 
-                                  ? Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)), child: ClipRRect(borderRadius: BorderRadius.circular(15), child: player))
-                                  : const Text("Trailer not available", style: TextStyle(color: Colors.white54)),
-                      
                       const SizedBox(height: 40),
-                      
-                      // Nút Comment - Đã gắn sự kiện chuyển hướng
+
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -416,9 +389,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
               ),
             ],
           ),
-        );
-      }
-    ),
+        ),
     );
   }
 
@@ -427,30 +398,55 @@ class _DetailsScreenState extends State<DetailsScreen> {
       Text(widget.movie.overview, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 16, height: 1.6), maxLines: _isExpanded ? null : 4, textAlign: TextAlign.justify),
       GestureDetector(
         onTap: () => setState(() => _isExpanded = !_isExpanded),
-        child: Text(_isExpanded ? 'Read less' : 'Read more', style: const TextStyle(color: Color(0xFF87CEEB), fontWeight: FontWeight.bold)),
+        child: Text(_isExpanded ? 'Read less' : 'Read more', style: const TextStyle(color: Color(0xFFE53935), fontWeight: FontWeight.bold)),
       )
     ]);
   }
 
   Widget _buildCastList() {
-    return SizedBox(height: 160, child: ListView.builder(
-      scrollDirection: Axis.horizontal,
-      itemCount: _cast.length,
-      itemBuilder: (context, index) {
-        final actor = _cast[index];
-        return GestureDetector(
-          onTap: () => _showActorDetails(actor),
-          child: Container(width: 100, margin: const EdgeInsets.only(right: 16), child: Column(children: [
-            CircleAvatar(radius: 40, backgroundImage: CachedNetworkImageProvider(actor.profileUrl)),
-            const SizedBox(height: 10),
-            Text(actor.name, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 12), textAlign: TextAlign.center, maxLines: 2),
-          ])),
-        );
-      },
-    ));
+    return SizedBox(
+      height: 160,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _cast.length,
+        itemExtent: 116,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        itemBuilder: (context, index) {
+          return RepaintBoundary(
+            child: _CastCard(
+              actor: _cast[index],
+              onTap: () => _showActorDetails(_cast[index]),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildGenreChip(String label) {
     return Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14)));
+  }
+}
+
+class _CastCard extends StatelessWidget {
+  final Cast actor;
+  final VoidCallback onTap;
+
+  const _CastCard({required this.actor, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 100,
+        margin: const EdgeInsets.only(right: 16),
+        child: Column(children: [
+          CircleAvatar(radius: 40, backgroundImage: CachedNetworkImageProvider(actor.profileUrl)),
+          const SizedBox(height: 10),
+          Text(actor.name, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 12), textAlign: TextAlign.center, maxLines: 2),
+        ]),
+      ),
+    );
   }
 }

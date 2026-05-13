@@ -43,4 +43,7 @@ class Movie {
 
   String get posterUrl => 'https://image.tmdb.org/t/p/w500$posterPath';
   String get backdropUrl => 'https://image.tmdb.org/t/p/w500$backdropPath';
+
+  String getPosterUrl(String size) => 'https://image.tmdb.org/t/p/$size$posterPath';
+  String getBackdropUrl(String size) => 'https://image.tmdb.org/t/p/$size$backdropPath';
 }

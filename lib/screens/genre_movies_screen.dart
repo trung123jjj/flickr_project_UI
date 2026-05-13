@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/movie.dart';
 import '../services/tmdb_service.dart';
@@ -87,13 +88,23 @@ class _GenreMoviesScreenState extends State<GenreMoviesScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1B263B),
-          title: Text(widget.genreName, style: const TextStyle(color: Colors.white)),
-
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(widget.genreName),
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        centerTitle: true,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Theme.of(context).brightness == Brightness.dark
+              ? Brightness.light
+              : Brightness.dark,
+          statusBarBrightness: Theme.of(context).brightness == Brightness.dark
+              ? Brightness.dark
+              : Brightness.light,
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF87CEEB)))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFE53935)))
           : _error != null
               ? Center(
                   child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),
@@ -102,14 +113,23 @@ class _GenreMoviesScreenState extends State<GenreMoviesScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   itemCount: _movies.length,
                   itemBuilder: (context, index) {
-                    final movie = _movies[index];
-                    return _buildMovieRow(movie);
+                    return RepaintBoundary(
+                      child: _MovieRow(movie: _movies[index]),
+                    );
                   },
                 ),
-    );
+     );
   }
 
-  Widget _buildMovieRow(Movie movie) {
+}
+
+class _MovieRow extends StatelessWidget {
+  final Movie movie;
+
+  const _MovieRow({required this.movie});
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GestureDetector(
@@ -129,10 +149,11 @@ class _GenreMoviesScreenState extends State<GenreMoviesScreen> {
                   bottomLeft: Radius.circular(12),
                 ),
                 child: CachedNetworkImage(
-                  imageUrl: movie.posterUrl,
+                  imageUrl: movie.getPosterUrl('w185'), // Dùng ảnh nhỏ hơn cho thumbnail
                   width: 90,
                   height: 135,
                   fit: BoxFit.cover,
+                  memCacheWidth: 180, // Tối ưu memory
                   errorWidget: (context, url, error) => Container(
                     width: 90,
                     height: 135,
@@ -197,3 +218,5 @@ class _GenreMoviesScreenState extends State<GenreMoviesScreen> {
     );
   }
 }
+
+
