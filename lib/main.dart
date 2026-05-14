@@ -53,7 +53,7 @@ class MyApp extends StatelessWidget {
         builder: (context, themeProvider, _) {
           const pageTransitions = PageTransitionsTheme(
             builders: {
-              TargetPlatform.android: ZoomPageTransitionsBuilder(), // Hiệu ứng thu phóng mượt hơn trên Android
+              TargetPlatform.android: CupertinoPageTransitionsBuilder(),
               TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
               TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
             },
