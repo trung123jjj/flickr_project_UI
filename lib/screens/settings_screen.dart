@@ -76,7 +76,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B00)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE53935)),
             child: const Text('Submit', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -147,7 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B00)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE53935)),
             child: const Text('Submit', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -352,9 +352,12 @@ class _SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       elevation: 0,
       centerTitle: false,
-      title: const Text(
+      title: Text(
         'Settings',
-        style: TextStyle(fontWeight: FontWeight.bold),
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: themeProvider.isDarkMode ? Colors.white : Colors.black,
+        ),
       ),
       iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
       systemOverlayStyle: SystemUiOverlayStyle(
