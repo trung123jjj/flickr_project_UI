@@ -12,7 +12,8 @@ import '../providers/auth_provider.dart';
 class _DisplayItem {
   final Comment comment;
   final String? parentContent;
-  const _DisplayItem(this.comment, this.parentContent);
+  final String? parentUsername;
+  const _DisplayItem(this.comment, this.parentContent, [this.parentUsername]);
 }
 
 class CommentsScreen extends StatefulWidget {
@@ -54,7 +55,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
           .toList()
         ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
       for (final reply in replies) {
-        items.add(_DisplayItem(reply, parent.content));
+        items.add(_DisplayItem(reply, parent.content, parent.username));
       }
     }
     return items;
@@ -332,7 +333,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                         itemCount: _buildDisplayList().length,
                         itemBuilder: (context, index) {
                           final item = _buildDisplayList()[index];
-                          return _buildCommentItem(item.comment, !item.comment.isParent, item.parentContent);
+                          return _buildCommentItem(item.comment, !item.comment.isParent, item.parentContent, item.parentUsername);
                         },
                       ),
           ),
@@ -356,7 +357,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
     );
   }
 
-  Widget _buildCommentItem(Comment comment, bool isReply, String? parentContent) {
+  Widget _buildCommentItem(Comment comment, bool isReply, String? parentContent, String? parentUsername) {
     final auth = context.read<AuthProvider>();
     final isMe = comment.username == auth.currentUser;
     final displayName = isMe ? 'You' : comment.username;
@@ -432,7 +433,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                               fontStyle: FontStyle.italic,
                             ),
                             children: [
-                              TextSpan(text: 'reply to ${comment.username}'),
+                              TextSpan(text: 'reply to ${parentUsername ?? comment.username}'),
                               if (parentContent != null)
                                 TextSpan(
                                   text: ': ${parentContent.length > 50 ? '${parentContent.substring(0, 50)}...' : parentContent}',
