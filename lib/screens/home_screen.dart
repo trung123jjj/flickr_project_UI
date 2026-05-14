@@ -56,50 +56,17 @@ class HomeScreenState extends State<HomeScreen> {
       final nowPlaying = tmdbResults[1] as List<Movie>;
       final genresList = tmdbResults[2] as List<Genre>;
 
-      final allMovieIds = <int>{};
-      for (var m in popular) { allMovieIds.add(m.id); }
-      for (var m in nowPlaying) { allMovieIds.add(m.id); }
-
-      final ratingsFuture = allMovieIds.isNotEmpty
-          ? BackendService.getBatchMovieRatings(allMovieIds.toList())
-          : Future.value(<String, dynamic>{'success': false, 'data': null});
-
-      Map<int, dynamic> ratings = {};
-      final result = await ratingsFuture;
-      if (result['success'] == true) {
-        final data = result['data'];
-        if (data != null) {
-          (data as Map).forEach((key, value) {
-            ratings[int.parse(key.toString())] = value;
-          });
-        }
-      }
-
-      Movie updateMovieRating(Movie movie, Map<int, dynamic> ratings) {
-        final r = ratings[movie.id];
-        return Movie(
-          id: movie.id,
-          title: movie.title,
-          overview: movie.overview,
-          posterPath: movie.posterPath,
-          backdropPath: movie.backdropPath,
-          voteAverage: movie.voteAverage,
-          releaseDate: movie.releaseDate,
-          genreIds: movie.genreIds,
-          averageRating: r != null ? (r['averageScore'] ?? 0).toDouble() : null,
-          totalRatings: r != null ? r['totalRatings'] ?? 0 : 0,
-        );
-      }
-
       final hasData = popular.isNotEmpty || nowPlaying.isNotEmpty || genresList.isNotEmpty;
 
       setState(() {
-        _popularMovies = popular.map((m) => updateMovieRating(m, ratings)).toList();
-        _nowPlayingMovies = nowPlaying.map((m) => updateMovieRating(m, ratings)).toList();
+        _popularMovies = popular;
+        _nowPlayingMovies = nowPlaying;
         _genres = genresList;
         _loadError = hasData ? null : 'Failed to load data. Please check your internet connection and try again.';
         _isLoading = false;
       });
+
+      _loadRatingsForMovies(popular, nowPlaying);
     } catch (e) {
       print('HomeScreen._loadAllData error: $e');
       setState(() {
@@ -109,29 +76,64 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _loadRatingsForMovies(List<Movie> popular, List<Movie> nowPlaying) async {
+    try {
+      final allMovieIds = <int>{};
+      for (var m in popular) { allMovieIds.add(m.id); }
+      for (var m in nowPlaying) { allMovieIds.add(m.id); }
+
+      if (allMovieIds.isEmpty) return;
+
+      final result = await BackendService.getBatchMovieRatings(allMovieIds.toList());
+      if (!mounted) return;
+
+      Map<int, dynamic> ratings = {};
+      if (result['success'] == true) {
+        final data = result['data'];
+        if (data != null) {
+          (data as Map).forEach((key, value) {
+            ratings[int.parse(key.toString())] = value;
+          });
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _popularMovies = popular.map((m) => _applyRating(m, ratings)).toList();
+        _nowPlayingMovies = nowPlaying.map((m) => _applyRating(m, ratings)).toList();
+      });
+    } catch (e) {
+      print('HomeScreen._loadRatingsForMovies error: $e');
+    }
+  }
+
+  Movie _applyRating(Movie movie, Map<int, dynamic> ratings) {
+    final r = ratings[movie.id];
+    return Movie(
+      id: movie.id,
+      title: movie.title,
+      overview: movie.overview,
+      posterPath: movie.posterPath,
+      backdropPath: movie.backdropPath,
+      voteAverage: movie.voteAverage,
+      releaseDate: movie.releaseDate,
+      genreIds: movie.genreIds,
+      averageRating: r != null ? (r['averageScore'] ?? 0).toDouble() : null,
+      totalRatings: r != null ? r['totalRatings'] ?? 0 : 0,
+    );
+  }
+
   void _applyRatingUpdate(Map result) {
     final movieId = result['movieId'] as int;
     final avgRating = (result['averageRating'] as num?)?.toDouble();
     final totalRatings = result['totalRatings'] as int?;
 
-    final updateList = (List<Movie> list) => list.map((m) {
-      if (m.id == movieId) {
-        return Movie(
-          id: m.id, title: m.title, overview: m.overview,
-          posterPath: m.posterPath, backdropPath: m.backdropPath,
-          voteAverage: m.voteAverage, releaseDate: m.releaseDate,
-          genreIds: m.genreIds,
-          averageRating: avgRating ?? m.averageRating,
-          totalRatings: totalRatings ?? m.totalRatings,
-        );
-      }
-      return m;
-    }).toList();
+    final ratings = {movieId: {'averageScore': avgRating, 'totalRatings': totalRatings}};
 
     if (mounted) {
       setState(() {
-        _popularMovies = updateList(_popularMovies);
-        _nowPlayingMovies = updateList(_nowPlayingMovies);
+        _popularMovies = _popularMovies.map((m) => _applyRating(m, ratings)).toList();
+        _nowPlayingMovies = _nowPlayingMovies.map((m) => _applyRating(m, ratings)).toList();
       });
     }
   }

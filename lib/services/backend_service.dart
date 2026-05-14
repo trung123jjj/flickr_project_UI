@@ -94,7 +94,7 @@ class BackendService {
   }
 
   static Future<Map<String, dynamic>> createComment(int movieId, String content,
-      {String? imageUrl}) async {
+      {String? imageUrl, String? parentCommentId}) async {
     try {
       final headers = await _getHeaders();
       final body = <String, dynamic>{
@@ -103,6 +103,9 @@ class BackendService {
       };
       if (imageUrl != null) {
         body['imageUrl'] = imageUrl;
+      }
+      if (parentCommentId != null) {
+        body['parentCommentId'] = parentCommentId;
       }
       final response = await http.post(
         Uri.parse('$_baseUrl/api/comments'),

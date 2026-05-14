@@ -9,6 +9,12 @@ import '../services/backend_service.dart';
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 
+class _DisplayItem {
+  final Comment comment;
+  final String? parentContent;
+  const _DisplayItem(this.comment, this.parentContent);
+}
+
 class CommentsScreen extends StatefulWidget {
   final Movie movie;
 
@@ -24,6 +30,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
   bool _isLoading = false;
   File? _selectedImage;
   bool _isUploadingImage = false;
+  Comment? _replyingTo;
 
   @override
   void initState() {
@@ -35,6 +42,26 @@ class _CommentsScreenState extends State<CommentsScreen> {
   void dispose() {
     _commentController.dispose();
     super.dispose();
+  }
+
+  List<_DisplayItem> _buildDisplayList() {
+    final parents = _comments.where((c) => c.isParent).toList();
+    final items = <_DisplayItem>[];
+    for (final parent in parents) {
+      items.add(_DisplayItem(parent, null));
+      final replies = _comments
+          .where((c) => c.parentCommentId == parent.id)
+          .toList()
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      for (final reply in replies) {
+        items.add(_DisplayItem(reply, parent.content));
+      }
+    }
+    return items;
+  }
+
+  void _cancelReply() {
+    setState(() => _replyingTo = null);
   }
 
   Future<void> _pickImage() async {
@@ -88,9 +115,6 @@ class _CommentsScreenState extends State<CommentsScreen> {
           print('WARNING: data is not a List: ${rawData.runtimeType} -> $rawData');
         }
         print('Comments count: ${commentsData.length}');
-        if (commentsData.isNotEmpty) {
-          print('First comment: ${commentsData[0]}');
-        }
 
         setState(() {
           _comments = commentsData.map((json) {
@@ -108,6 +132,44 @@ class _CommentsScreenState extends State<CommentsScreen> {
     } catch (e) {
       print('Error loading comments: $e');
     }
+  }
+
+  void _showReplyMenu(Comment comment) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[600],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.reply, color: Color(0xFFFF6B00)),
+                title: const Text('Reply', style: TextStyle(fontWeight: FontWeight.w500)),
+                subtitle: Text('@${comment.username}'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() => _replyingTo = comment);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _addComment() async {
@@ -138,21 +200,31 @@ class _CommentsScreenState extends State<CommentsScreen> {
         widget.movie.id,
         content,
         imageUrl: imageUrl,
+        parentCommentId: _replyingTo?.id,
       );
 
       if (result['success'] == true) {
-        _commentController.clear();
-        _removeSelectedImage();
-        FocusScope.of(context).unfocus();
-        setState(() {
-          _comments.add(Comment(
+        final data = result['data'];
+        Comment newComment;
+        if (data is Map<String, dynamic> && data['_id'] != null) {
+          newComment = Comment.fromJson(data);
+        } else if (data is Map && data['_id'] != null) {
+          newComment = Comment.fromJson(Map<String, dynamic>.from(data));
+        } else {
+          newComment = Comment(
             username: username,
             content: content,
             timestamp: DateTime.now(),
             avatarUrl: auth.avatarUrl,
             imageUrl: imageUrl,
-          ));
-        });
+            parentCommentId: _replyingTo?.id,
+          );
+        }
+        _commentController.clear();
+        _removeSelectedImage();
+        _cancelReply();
+        FocusScope.of(context).unfocus();
+        setState(() => _comments.add(newComment));
       } else {
         if (result['tokenExpired'] == true) {
           await auth.logout();
@@ -184,7 +256,6 @@ class _CommentsScreenState extends State<CommentsScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
-          // Banner phim ở trên cùng
           Stack(
             children: [
               SizedBox(
@@ -196,7 +267,6 @@ class _CommentsScreenState extends State<CommentsScreen> {
                   errorWidget: (context, url, error) => Container(color: Colors.blueGrey),
                 ),
               ),
-              // Gradient Overlay
               Container(
                 height: 220,
                 decoration: BoxDecoration(
@@ -204,13 +274,12 @@ class _CommentsScreenState extends State<CommentsScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withOpacity(0.4),
+                      Colors.black.withValues(alpha: 0.4),
                       Theme.of(context).scaffoldBackgroundColor,
                     ],
                   ),
                 ),
               ),
-              // Nút Back
               SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.only(left: 16, top: 8),
@@ -223,7 +292,6 @@ class _CommentsScreenState extends State<CommentsScreen> {
                   ),
                 ),
               ),
-              // Tiêu đề Forum
               Positioned(
                 bottom: 20,
                 left: 24,
@@ -253,7 +321,6 @@ class _CommentsScreenState extends State<CommentsScreen> {
             ],
           ),
 
-          // Danh sách bình luận
           Expanded(
             child: _isLoading
                 ? const Center(
@@ -262,15 +329,14 @@ class _CommentsScreenState extends State<CommentsScreen> {
                     ? _buildEmptyState()
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _comments.length,
+                        itemCount: _buildDisplayList().length,
                         itemBuilder: (context, index) {
-                          final comment = _comments[index];
-                          return _buildCommentItem(comment);
+                          final item = _buildDisplayList()[index];
+                          return _buildCommentItem(item.comment, !item.comment.isParent, item.parentContent);
                         },
                       ),
           ),
 
-          // Ô nhập bình luận
           _buildInputArea(),
         ],
       ),
@@ -282,15 +348,15 @@ class _CommentsScreenState extends State<CommentsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.forum_outlined, size: 80, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3)),
+          Icon(Icons.forum_outlined, size: 80, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
           const SizedBox(height: 16),
-          Text("No comments yet. Be the first!", style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5))),
+          Text("No comments yet. Be the first!", style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5))),
         ],
       ),
     );
   }
 
-  Widget _buildCommentItem(Comment comment) {
+  Widget _buildCommentItem(Comment comment, bool isReply, String? parentContent) {
     final auth = context.read<AuthProvider>();
     final isMe = comment.username == auth.currentUser;
     final displayName = isMe ? 'You' : comment.username;
@@ -302,7 +368,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
             : const Color(0xFFE8E8E8);
 
     final textColor = isMe ? Colors.white : Theme.of(context).colorScheme.onSurface;
-    final timeColor = isMe ? Colors.white60 : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5);
+    final timeColor = isMe ? Colors.white60 : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
 
     final timeText = comment.timestamp.day == DateTime.now().day &&
             comment.timestamp.month == DateTime.now().month &&
@@ -326,71 +392,98 @@ class _CommentsScreenState extends State<CommentsScreen> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, left: 8, right: 8),
-      child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (!isMe) _avatar(0, 8),
-          Flexible(
-            child: Container(
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: bubbleColor,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: isMe ? const Radius.circular(18) : Radius.zero,
-                  bottomRight: isMe ? Radius.zero : const Radius.circular(18),
+    return GestureDetector(
+      onLongPress: () => _showReplyMenu(comment),
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: 6,
+          left: isReply ? 48.0 : 8.0,
+          right: 8,
+        ),
+        child: Row(
+          mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (!isMe) _avatar(0, 8),
+            Flexible(
+              child: Container(
+                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: bubbleColor,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(18),
+                    topRight: const Radius.circular(18),
+                    bottomLeft: isMe ? const Radius.circular(18) : Radius.zero,
+                    bottomRight: isMe ? Radius.zero : const Radius.circular(18),
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      displayName,
-                      style: TextStyle(
-                        color: isMe ? Colors.white70 : const Color(0xFFE53935),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                child: Column(
+                  crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    if (isReply)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: RichText(
+                          text: TextSpan(
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
+                            ),
+                            children: [
+                              TextSpan(text: 'reply to ${comment.username}'),
+                              if (parentContent != null)
+                                TextSpan(
+                                  text: ': ${parentContent.length > 50 ? '${parentContent.substring(0, 50)}...' : parentContent}',
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  Text(
-                    comment.content,
-                    style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
-                  ),
-                  if (comment.imageUrl != null && comment.imageUrl!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: CachedNetworkImage(
-                        imageUrl: comment.imageUrl!,
-                        width: double.infinity,
-                        fit: BoxFit.contain,
-                        errorWidget: (context, url, error) => Container(
-                          color: Colors.black12,
-                          height: 80,
-                          child: const Center(child: Icon(Icons.broken_image, color: Colors.white38)),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        displayName,
+                        style: TextStyle(
+                          color: isMe ? Colors.white70 : const Color(0xFFE53935),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
                         ),
                       ),
                     ),
+                    Text(
+                      comment.content,
+                      style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
+                    ),
+                    if (comment.imageUrl != null && comment.imageUrl!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: CachedNetworkImage(
+                          imageUrl: comment.imageUrl!,
+                          width: double.infinity,
+                          fit: BoxFit.contain,
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.black12,
+                            height: 80,
+                            child: const Center(child: Icon(Icons.broken_image, color: Colors.white38)),
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Text(
+                      timeText,
+                      style: TextStyle(color: timeColor, fontSize: 11),
+                    ),
                   ],
-                  const SizedBox(height: 4),
-                  Text(
-                    timeText,
-                    style: TextStyle(color: timeColor, fontSize: 11),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-          if (isMe) _avatar(8, 0),
-        ],
+            if (isMe) _avatar(8, 0),
+          ],
+        ),
       ),
     );
   }
@@ -405,6 +498,36 @@ class _CommentsScreenState extends State<CommentsScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (_replyingTo != null)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6B00).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.reply, size: 16, color: Color(0xFFFF6B00)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Replying to @${_replyingTo!.username}',
+                      style: const TextStyle(
+                        color: Color(0xFFFF6B00),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _cancelReply,
+                    child: const Icon(Icons.close, size: 18, color: Color(0xFFFF6B00)),
+                  ),
+                ],
+              ),
+            ),
           if (_selectedImage != null)
             Stack(
               children: [
@@ -453,16 +576,16 @@ class _CommentsScreenState extends State<CommentsScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.black.withOpacity(0.2)
-                        : Colors.grey.withOpacity(0.2),
+                        ? Colors.black.withValues(alpha: 0.2)
+                        : Colors.grey.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(25),
                   ),
                   child: TextField(
                     controller: _commentController,
                     style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                     decoration: InputDecoration(
-                      hintText: 'Add a comment...',
-                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5), fontSize: 14),
+                      hintText: _replyingTo != null ? 'Write a reply...' : 'Add a comment...',
+                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5), fontSize: 14),
                       border: InputBorder.none,
                     ),
                   ),
