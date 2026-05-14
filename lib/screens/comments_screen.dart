@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../models/movie.dart';
 import '../models/comment.dart';
 import '../services/backend_service.dart';
@@ -13,7 +15,8 @@ class _DisplayItem {
   final Comment comment;
   final String? parentContent;
   final String? parentUsername;
-  const _DisplayItem(this.comment, this.parentContent, [this.parentUsername]);
+  final bool isParentDeleted;
+  const _DisplayItem(this.comment, this.parentContent, [this.parentUsername, this.isParentDeleted = false]);
 }
 
 class CommentsScreen extends StatefulWidget {
@@ -32,33 +35,167 @@ class _CommentsScreenState extends State<CommentsScreen> {
   File? _selectedImage;
   bool _isUploadingImage = false;
   Comment? _replyingTo;
+  List<_DisplayItem> _displayItems = [];
+  bool _needsRebuild = true;
+  IO.Socket? _socket;
+  final Set<String?> _highlightedComments = {};
+  final ScrollController _scrollController = ScrollController();
+  bool _socketConnected = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+      _connectSocket();
+      _startPollingFallback();
+    });
   }
 
   @override
   void dispose() {
+    _socket?.emit("leaveMovie", widget.movie.id.toString());
+    _socket?.disconnect();
+    _socket?.dispose();
+    _pollTimer?.cancel();
+    _scrollController.dispose();
     _commentController.dispose();
     super.dispose();
   }
 
-  List<_DisplayItem> _buildDisplayList() {
-    final parents = _comments.where((c) => c.isParent).toList();
-    final items = <_DisplayItem>[];
-    for (final parent in parents) {
-      items.add(_DisplayItem(parent, null));
-      final replies = _comments
-          .where((c) => c.parentCommentId == parent.id)
-          .toList()
-        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
-      for (final reply in replies) {
-        items.add(_DisplayItem(reply, parent.content, parent.username));
+  Timer? _pollTimer;
+
+  void _startPollingFallback() {
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!_socketConnected) {
+        print('[Poll] Socket not connected, polling...');
+        _loadComments();
       }
+    });
+  }
+
+  void _scrollToLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _connectSocket() {
+    try {
+      _socket = IO.io(
+        ApiConfig.backendBaseUrl,
+        IO.OptionBuilder()
+          .setTransports(['websocket', 'polling'])
+          .enableAutoConnect()
+          .build(),
+      );
+
+      _socket?.onConnect((_) {
+        print('[Socket] Connected: ${_socket?.id}');
+        _socketConnected = true;
+        _socket?.emit("joinMovie", widget.movie.id.toString());
+      });
+
+      _socket?.onConnectError((err) {
+        print('[Socket] Connect error: $err');
+        _socketConnected = false;
+      });
+
+      _socket?.onError((err) {
+        print('[Socket] Error: $err');
+        _socketConnected = false;
+      });
+
+      _socket?.on('reconnect', (_) {
+        print('[Socket] Reconnected');
+        _socketConnected = true;
+        _socket?.emit("joinMovie", widget.movie.id.toString());
+      });
+
+      _socket?.on("newComment", (data) {
+        if (data is Map<String, dynamic>) {
+          final comment = Comment.fromJson(data);
+          if (mounted) {
+            setState(() {
+              final exists = _comments.any((c) => c.id == comment.id);
+              if (!exists) {
+                _comments.add(comment);
+                _highlightedComments.add(comment.id);
+                _markNeedsRebuild();
+              }
+            });
+            _scrollToLatest();
+            Future.delayed(const Duration(milliseconds: 800), () {
+              if (mounted) setState(() => _highlightedComments.remove(comment.id));
+            });
+          }
+        }
+      });
+
+      _socket?.on("commentUpdated", (data) {
+        if (data is Map<String, dynamic>) {
+          final updated = Comment.fromJson(data);
+          if (mounted) {
+            setState(() {
+              final idx = _comments.indexWhere((c) => c.id == updated.id);
+              if (idx != -1) _comments[idx] = updated;
+              _markNeedsRebuild();
+            });
+          }
+        }
+      });
+
+      _socket?.on("commentDeleted", (data) {
+        if (data is Map<String, dynamic>) {
+          final deleted = Comment.fromJson(data);
+          if (mounted) {
+            setState(() {
+              final idx = _comments.indexWhere((c) => c.id == deleted.id);
+              if (idx != -1) {
+                _comments[idx] = Comment(
+                  id: deleted.id,
+                  username: deleted.username,
+                  content: '',
+                  timestamp: deleted.timestamp,
+                  avatarUrl: deleted.avatarUrl,
+                  parentCommentId: deleted.parentCommentId,
+                  isDeleted: true,
+                );
+              }
+              _markNeedsRebuild();
+            });
+          }
+        }
+      });
+
+      _socket?.onDisconnect((reason) => print('[Socket] Disconnected: $reason'));
+    } catch (e) {
+      print('[Socket] Error: $e');
     }
-    return items;
+  }
+
+  void _rebuildDisplayList() {
+    final Map<String, Comment> parentMap = {};
+    for (final c in _comments) {
+      if (c.id != null) parentMap[c.id!] = c;
+    }
+    final sorted = List<Comment>.from(_comments)
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    _displayItems = sorted.map((c) {
+      final parent = c.parentCommentId != null ? parentMap[c.parentCommentId] : null;
+      return _DisplayItem(c, parent?.content, parent?.username, parent?.isDeleted ?? false);
+    }).toList();
+    _needsRebuild = false;
+  }
+
+  void _markNeedsRebuild() {
+    _needsRebuild = true;
   }
 
   void _cancelReply() {
@@ -126,6 +263,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
               rethrow;
             }
           }).toList().reversed.toList();
+          _markNeedsRebuild();
         });
       } else {
         print('Failed to load comments: ${result['message']}');
@@ -136,6 +274,11 @@ class _CommentsScreenState extends State<CommentsScreen> {
   }
 
   void _showReplyMenu(Comment comment) {
+    final auth = context.read<AuthProvider>();
+    final currentUserId = auth.userId ?? '';
+    final isLiked = comment.isLikedBy(currentUserId);
+    final isOwn = comment.username == auth.currentUser;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).cardColor,
@@ -158,7 +301,22 @@ class _CommentsScreenState extends State<CommentsScreen> {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.reply, color: Color(0xFFFF6B00)),
+                leading: Icon(
+                  isLiked ? Icons.favorite : Icons.favorite_border,
+                  color: const Color(0xFFE53935),
+                ),
+                title: Text(
+                  isLiked ? 'Unlike' : 'Like',
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                subtitle: Text('@${comment.username}'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _toggleLike(comment);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.reply, color: Color(0xFFE53935)),
                 title: const Text('Reply', style: TextStyle(fontWeight: FontWeight.w500)),
                 subtitle: Text('@${comment.username}'),
                 onTap: () {
@@ -166,11 +324,97 @@ class _CommentsScreenState extends State<CommentsScreen> {
                   setState(() => _replyingTo = comment);
                 },
               ),
+              if (isOwn)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Color(0xFFE53935)),
+                  title: const Text(
+                    'Delete',
+                    style: TextStyle(fontWeight: FontWeight.w500, color: Color(0xFFE53935)),
+                  ),
+                  subtitle: Text('@${comment.username}'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _confirmDelete(comment);
+                  },
+                ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _toggleLike(Comment comment) async {
+    if (comment.id == null) return;
+    final result = await BackendService.toggleLikeComment(comment.id!);
+    if (result['success'] == true) {
+      final data = result['data'];
+      if (data is Map<String, dynamic>) {
+        final updated = Comment.fromJson(data);
+        setState(() {
+          final idx = _comments.indexWhere((c) => c.id == comment.id);
+          if (idx != -1) {
+            _comments[idx] = updated;
+          }
+          _markNeedsRebuild();
+        });
+      }
+    }
+  }
+
+  void _confirmDelete(Comment comment) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        title: const Text('Delete comment?'),
+        content: const Text('This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _deleteComment(comment);
+            },
+            child: const Text('Delete', style: TextStyle(color: Color(0xFFE53935))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteComment(Comment comment) async {
+    if (comment.id == null) return;
+    final result = await BackendService.deleteComment(comment.id!);
+    if (result['success'] == true) {
+      setState(() {
+        final idx = _comments.indexWhere((c) => c.id == comment.id);
+        if (idx != -1) {
+          _comments[idx] = Comment(
+            id: comment.id,
+            username: comment.username,
+            content: '',
+            timestamp: comment.timestamp,
+            avatarUrl: comment.avatarUrl,
+            parentCommentId: comment.parentCommentId,
+            isDeleted: true,
+          );
+        }
+        _markNeedsRebuild();
+      });
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to delete comment'),
+            backgroundColor: const Color(0xFFFF6B00),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _addComment() async {
@@ -222,10 +466,18 @@ class _CommentsScreenState extends State<CommentsScreen> {
           );
         }
         _commentController.clear();
-        _removeSelectedImage();
-        _cancelReply();
         FocusScope.of(context).unfocus();
-        setState(() => _comments.add(newComment));
+        _highlightedComments.add(newComment.id);
+        setState(() {
+          _replyingTo = null;
+          _selectedImage = null;
+          _comments.add(newComment);
+          _markNeedsRebuild();
+        });
+        _scrollToLatest();
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted) setState(() => _highlightedComments.remove(newComment.id));
+        });
       } else {
         if (result['tokenExpired'] == true) {
           await auth.logout();
@@ -253,6 +505,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_needsRebuild) _rebuildDisplayList();
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
@@ -300,7 +553,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'MOVIE FORUM',
+                      'MOVIE CHAT SECTION',
                       style: TextStyle(
                         color: Color(0xFFE53935),
                         fontSize: 12,
@@ -329,11 +582,12 @@ class _CommentsScreenState extends State<CommentsScreen> {
                 : _comments.isEmpty
                     ? _buildEmptyState()
                     : ListView.builder(
+                        controller: _scrollController,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _buildDisplayList().length,
+                        itemCount: _displayItems.length,
                         itemBuilder: (context, index) {
-                          final item = _buildDisplayList()[index];
-                          return _buildCommentItem(item.comment, !item.comment.isParent, item.parentContent, item.parentUsername);
+                          final item = _displayItems[index];
+                          return _buildCommentItem(item.comment, !item.comment.isParent, item.parentContent, item.parentUsername, isParentDeleted: item.isParentDeleted);
                         },
                       ),
           ),
@@ -357,13 +611,13 @@ class _CommentsScreenState extends State<CommentsScreen> {
     );
   }
 
-  Widget _buildCommentItem(Comment comment, bool isReply, String? parentContent, String? parentUsername) {
+  Widget _buildCommentItem(Comment comment, bool isReply, String? parentContent, String? parentUsername, {bool isParentDeleted = false}) {
     final auth = context.read<AuthProvider>();
     final isMe = comment.username == auth.currentUser;
     final displayName = isMe ? 'You' : comment.username;
 
     final bubbleColor = isMe
-        ? const Color(0xFFFF6B00)
+        ? const Color(0xFFE53935)
         : Theme.of(context).brightness == Brightness.dark
             ? const Color(0xFF2A2A2A)
             : const Color(0xFFE8E8E8);
@@ -378,23 +632,32 @@ class _CommentsScreenState extends State<CommentsScreen> {
         : "${comment.timestamp.day.toString().padLeft(2, '0')}/${comment.timestamp.month.toString().padLeft(2, '0')}/${comment.timestamp.year}";
 
     Widget _avatar(double padLeft, double padRight) {
+      final hasAvatar = comment.avatarUrl != null && comment.avatarUrl!.isNotEmpty;
       return Padding(
         padding: EdgeInsets.only(left: padLeft, right: padRight),
         child: CircleAvatar(
           radius: 16,
           backgroundColor: Colors.grey[800],
-          backgroundImage: comment.avatarUrl != null && comment.avatarUrl!.isNotEmpty
-              ? CachedNetworkImageProvider(comment.avatarUrl!)
-              : null,
-          child: (comment.avatarUrl == null || comment.avatarUrl!.isEmpty)
-              ? Icon(Icons.person, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant)
-              : null,
+          child: hasAvatar
+              ? ClipOval(
+                  child: CachedNetworkImage(
+                    imageUrl: comment.avatarUrl!,
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => const Icon(Icons.person, size: 16, color: Colors.white54),
+                    placeholder: (_, __) => const Icon(Icons.person, size: 16, color: Colors.white54),
+                  ),
+                )
+              : const Icon(Icons.person, size: 16, color: Colors.white54),
         ),
       );
     }
 
-    return GestureDetector(
-      onLongPress: () => _showReplyMenu(comment),
+    final isHighlighted = _highlightedComments.contains(comment.id);
+
+    Widget commentWidget = GestureDetector(
+      onLongPress: comment.isDeleted ? null : () => _showReplyMenu(comment),
       child: Padding(
         padding: EdgeInsets.only(
           bottom: 6,
@@ -436,7 +699,9 @@ class _CommentsScreenState extends State<CommentsScreen> {
                               TextSpan(text: 'reply to ${parentUsername ?? comment.username}'),
                               if (parentContent != null)
                                 TextSpan(
-                                  text: ': ${parentContent.length > 50 ? '${parentContent.substring(0, 50)}...' : parentContent}',
+                                  text: isParentDeleted
+                                      ? ': comment removed'
+                                      : ': ${parentContent.length > 50 ? '${parentContent.substring(0, 50)}...' : parentContent}',
                                 ),
                             ],
                           ),
@@ -454,8 +719,13 @@ class _CommentsScreenState extends State<CommentsScreen> {
                       ),
                     ),
                     Text(
-                      comment.content,
-                      style: TextStyle(color: textColor, fontSize: 15, height: 1.4),
+                      comment.isDeleted ? '[comment removed]' : comment.content,
+                      style: TextStyle(
+                        color: comment.isDeleted ? timeColor : textColor,
+                        fontSize: 15,
+                        height: 1.4,
+                        fontStyle: comment.isDeleted ? FontStyle.italic : FontStyle.normal,
+                      ),
                     ),
                     if (comment.imageUrl != null && comment.imageUrl!.isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -474,9 +744,31 @@ class _CommentsScreenState extends State<CommentsScreen> {
                       ),
                     ],
                     const SizedBox(height: 4),
-                    Text(
-                      timeText,
-                      style: TextStyle(color: timeColor, fontSize: 11),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          timeText,
+                          style: TextStyle(color: timeColor, fontSize: 11),
+                        ),
+                        if (comment.likesCount > 0) ...[
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.favorite,
+                            size: 12,
+                            color: const Color(0xFFF48FB1),
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${comment.likesCount}',
+                            style: TextStyle(
+                              color: const Color(0xFFF48FB1),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -487,6 +779,23 @@ class _CommentsScreenState extends State<CommentsScreen> {
         ),
       ),
     );
+
+    if (isHighlighted) {
+      commentWidget = TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOutBack,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: Transform.scale(scale: value, child: child),
+          );
+        },
+        child: commentWidget,
+      );
+    }
+
+    return commentWidget;
   }
 
   Widget _buildInputArea() {
@@ -594,7 +903,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
               ),
               const SizedBox(width: 8),
               CircleAvatar(
-                backgroundColor: const Color(0xFFFF6B00),
+                backgroundColor: const Color(0xFFE53935),
                 child: IconButton(
                   icon: Icon(Icons.send, color: Theme.of(context).colorScheme.onSurface, size: 20),
                   onPressed: _addComment,

@@ -368,6 +368,40 @@ class BackendService {
     }
   }
 
+  static Future<Map<String, dynamic>> deleteComment(String commentId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/api/comments/$commentId'),
+        headers: headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> toggleLikeComment(String commentId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/comments/$commentId/like'),
+        headers: headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
+  }
+
   static Future<Map<String, dynamic>> uploadCommentImage(File imageFile) async {
     try {
       final prefs = await SharedPreferences.getInstance();

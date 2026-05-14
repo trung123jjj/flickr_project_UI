@@ -1,3 +1,5 @@
+import '../config/api_config.dart';
+
 class Comment {
   final String? id;
   final String username;
@@ -6,6 +8,8 @@ class Comment {
   final String? imageUrl;
   final String? avatarUrl;
   final String? parentCommentId;
+  final List<String> likes;
+  final bool isDeleted;
 
   Comment({
     this.id,
@@ -15,9 +19,28 @@ class Comment {
     this.imageUrl,
     this.avatarUrl,
     this.parentCommentId,
+    this.likes = const [],
+    this.isDeleted = false,
   });
 
   bool get isParent => parentCommentId == null;
+  int get likesCount => likes.length;
+
+  bool isLikedBy(String userId) => likes.contains(userId);
+
+  Comment copyWith({List<String>? likes}) {
+    return Comment(
+      id: id,
+      username: username,
+      content: content,
+      timestamp: timestamp,
+      imageUrl: imageUrl,
+      avatarUrl: avatarUrl,
+      parentCommentId: parentCommentId,
+      likes: likes ?? this.likes,
+      isDeleted: isDeleted,
+    );
+  }
 
   factory Comment.fromJson(Map<String, dynamic> json) {
     String username = 'Unknown';
@@ -25,9 +48,14 @@ class Comment {
     final userId = json['userId'];
     if (userId is Map<String, dynamic>) {
       username = userId['username'] ?? 'Unknown';
-      avatarUrl = userId['avatar_url'];
+      avatarUrl = ApiConfig.normalizeUrl(userId['avatar_url']?.toString());
     } else if (json['username'] != null) {
       username = json['username'];
+    }
+
+    List<String> likes = [];
+    if (json['likes'] != null && json['likes'] is List) {
+      likes = (json['likes'] as List).map((e) => e.toString()).toList();
     }
 
     return Comment(
@@ -37,9 +65,11 @@ class Comment {
       timestamp: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
-      imageUrl: json['imageUrl'],
+      imageUrl: ApiConfig.normalizeUrl(json['imageUrl']?.toString()),
       avatarUrl: avatarUrl,
       parentCommentId: json['parentCommentId']?.toString(),
+      likes: likes,
+      isDeleted: json['isDeleted'] == true,
     );
   }
 }

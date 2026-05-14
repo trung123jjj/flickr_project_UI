@@ -376,7 +376,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                             style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF6B00),
+                            backgroundColor: const Color(0xFFE53935),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
