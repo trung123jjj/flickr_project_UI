@@ -119,7 +119,7 @@ class BackendService {
   }
 
   static Future<Map<String, dynamic>> createComment(int movieId, String content,
-      {String? imageUrl, String? parentCommentId}) async {
+      {String? imageUrl, String? parentCommentId, String? movieTitle}) async {
     try {
       final headers = await _getHeaders();
       final body = <String, dynamic>{
@@ -131,6 +131,9 @@ class BackendService {
       }
       if (parentCommentId != null) {
         body['parentCommentId'] = parentCommentId;
+      }
+      if (movieTitle != null) {
+        body['movieTitle'] = movieTitle;
       }
       final response = await http.post(
         Uri.parse('$_baseUrl/api/comments'),
@@ -501,6 +504,87 @@ class BackendService {
         'message': 'Connection error: $e',
         'data': null,
       };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getNotifications() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/notifications'),
+        headers: headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e', 'data': null};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getUnreadCount() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/notifications/unread-count'),
+        headers: headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e', 'data': null};
+    }
+  }
+
+  static Future<Map<String, dynamic>> markAllNotificationsRead() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.patch(
+        Uri.parse('$_baseUrl/api/notifications/read-all'),
+        headers: headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e', 'data': null};
+    }
+  }
+
+  static Future<Map<String, dynamic>> markNotificationRead(String id) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.patch(
+        Uri.parse('$_baseUrl/api/notifications/$id/read'),
+        headers: headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e', 'data': null};
+    }
+  }
+
+  static Future<Map<String, dynamic>> deleteNotification(String id) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/api/notifications/$id'),
+        headers: headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e', 'data': null};
+    }
+  }
+
+  static Future<Map<String, dynamic>> sendNotice(String username, {String? commentContent}) async {
+    try {
+      final headers = await _getHeaders();
+      final body = <String, dynamic>{'username': username};
+      if (commentContent != null) body['commentContent'] = commentContent;
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/reports/notice'),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e', 'data': null};
     }
   }
 

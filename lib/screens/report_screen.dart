@@ -249,16 +249,24 @@ class _ReportScreenState extends State<ReportScreen> {
                                       SizedBox(
                                         height: 32,
                                         child: TextButton.icon(
-                                          icon: const Icon(Icons.notifications_outlined, size: 16, color: Colors.grey),
-                                          label: const Text('Notice', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                          onPressed: () {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Notice feature coming soon')),
-                                            );
+                                          icon: const Icon(Icons.notifications_outlined, size: 16, color: Color(0xFFE53935)),
+                                          label: const Text('Notice', style: TextStyle(fontSize: 12, color: Color(0xFFE53935))),
+                                          onPressed: () async {
+                                            final result = await BackendService.sendNotice(username, commentContent: commentContent);
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(result['success'] == true
+                                                      ? 'Notice sent to @$username'
+                                                      : result['message'] ?? 'Failed to send notice'),
+                                                  backgroundColor: const Color(0xFFE53935),
+                                                ),
+                                              );
+                                            }
                                           },
                                           style: TextButton.styleFrom(
                                             padding: const EdgeInsets.symmetric(horizontal: 8),
-                                            backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                                            backgroundColor: const Color(0xFFE53935).withValues(alpha: 0.1),
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                           ),
                                         ),

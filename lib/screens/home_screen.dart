@@ -28,6 +28,7 @@ class HomeScreenState extends State<HomeScreen> {
   bool _isSearching = false;
   bool _isSearchLoading = false;
   Timer? _searchDebounce;
+  int _unreadCount = 0;
 
   @override
   void initState() {
@@ -35,6 +36,18 @@ class HomeScreenState extends State<HomeScreen> {
     final auth = context.read<AuthProvider>();
     auth.loadUserProfile();
     _loadAllData();
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    final result = await BackendService.getUnreadCount();
+    if (mounted) {
+      final data = result['data'] as Map<String, dynamic>?;
+      final count = data?['unreadCount'];
+      if (result['success'] == true) {
+        setState(() => _unreadCount = (count as int? ?? 0));
+      }
+    }
   }
 
   @override
@@ -223,7 +236,7 @@ class HomeScreenState extends State<HomeScreen> {
                   child: CustomScrollView(
                     physics: const BouncingScrollPhysics(),
                     slivers: [
-                      const SliverToBoxAdapter(child: _HomeHeader()),
+                      SliverToBoxAdapter(child: _HomeHeader(unreadCount: _unreadCount, onRefresh: _loadUnreadCount)),
                       SliverToBoxAdapter(child: _buildSearchBar()),
                       if (_isSearching)
                         _buildSearchSliver()
@@ -487,7 +500,10 @@ class _MovieCard extends StatelessWidget {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader();
+  final int unreadCount;
+  final VoidCallback onRefresh;
+
+  const _HomeHeader({required this.unreadCount, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -501,14 +517,45 @@ class _HomeHeader extends StatelessWidget {
             child: Text('Hello, ${auth.currentUser ?? ""}!',
                 style: const TextStyle(color: Color(0xFFE53935), fontSize: 24, fontWeight: FontWeight.bold)),
           ),
-          GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/settings'),
-            child: CircleAvatar(
-              radius: 20,
-              backgroundColor: Colors.grey[800],
-              backgroundImage: auth.avatarUrl != null && auth.avatarUrl!.isNotEmpty ? CachedNetworkImageProvider(auth.avatarUrl!) : null,
-              child: auth.avatarUrl == null || auth.avatarUrl!.isEmpty ? const Icon(Icons.person, color: Colors.white70, size: 22) : null,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () async {
+                  await Navigator.pushNamed(context, '/notifications');
+                  onRefresh();
+                },
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications_outlined, color: Colors.white, size: 26),
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: -3,
+                        top: -3,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE53935),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/settings'),
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Colors.grey[800],
+                  backgroundImage: auth.avatarUrl != null && auth.avatarUrl!.isNotEmpty ? CachedNetworkImageProvider(auth.avatarUrl!) : null,
+                  child: auth.avatarUrl == null || auth.avatarUrl!.isEmpty ? const Icon(Icons.person, color: Colors.white70, size: 22) : null,
+                ),
+              ),
+            ],
           ),
         ],
       ),

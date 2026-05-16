@@ -13,6 +13,7 @@ import 'screens/comments_screen.dart';
 import 'screens/genre_movies_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/report_screen.dart';
+import 'screens/notification_screen.dart';
 import 'models/movie.dart';
 import 'services/tmdb_service.dart';
 
@@ -123,7 +124,24 @@ class MyApp extends StatelessWidget {
                 final movie = settings.arguments as Movie;
                 page = DetailsScreen(movie: movie);
               } else if (settings.name == '/comments') {
-                final movie = settings.arguments as Movie;
+                final Movie movie;
+                if (settings.arguments is Movie) {
+                  movie = settings.arguments as Movie;
+                } else if (settings.arguments is Map<String, dynamic>) {
+                  final args = settings.arguments as Map<String, dynamic>;
+                  movie = Movie(
+                    id: args['movieId'] as int,
+                    title: args['movieTitle'] as String? ?? '',
+                    overview: '',
+                    posterPath: args['posterPath'] as String? ?? '',
+                    backdropPath: '',
+                    voteAverage: 0,
+                    releaseDate: '',
+                    genreIds: [],
+                  );
+                } else {
+                  return null;
+                }
                 page = CommentsScreen(movie: movie);
               } else if (settings.name == '/genreMovies') {
                 final args = settings.arguments as Map<String, dynamic>;
@@ -135,6 +153,8 @@ class MyApp extends StatelessWidget {
                 page = const SettingsScreen();
               } else if (settings.name == '/reports') {
                 page = const ReportScreen();
+              } else if (settings.name == '/notifications') {
+                page = const NotificationScreen();
               } else {
                 switch (settings.name) {
                   case '/':

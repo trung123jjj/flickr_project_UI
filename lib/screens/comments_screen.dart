@@ -235,6 +235,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
     setState(() => _isLoading = true);
     await _loadComments();
     setState(() => _isLoading = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToLatest());
   }
 
   Future<void> _loadComments() async {
@@ -559,6 +560,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
         content,
         imageUrl: imageUrl,
         parentCommentId: _replyingTo?.id,
+        movieTitle: widget.movie.title,
       );
 
       if (result['success'] == true) {
