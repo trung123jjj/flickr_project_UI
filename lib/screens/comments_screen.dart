@@ -529,7 +529,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
     }
   }
 
-  Future<void> _addComment() async {
+  Future<void> _addComment({bool isRetry = false}) async {
     if (_commentController.text.trim().isEmpty && _selectedImage == null) return;
 
     final content = _commentController.text.trim();
@@ -596,6 +596,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
           if (mounted) {
             Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
           }
+        } else if (result['tokenRefreshed'] == true && !isRetry) {
+          _addComment(isRetry: true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

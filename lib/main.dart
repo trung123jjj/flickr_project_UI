@@ -12,6 +12,7 @@ import 'screens/details_screen.dart';
 import 'screens/comments_screen.dart';
 import 'screens/genre_movies_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/report_screen.dart';
 import 'models/movie.dart';
 import 'services/tmdb_service.dart';
 
@@ -132,6 +133,8 @@ class MyApp extends StatelessWidget {
                 );
               } else if (settings.name == '/settings') {
                 page = const SettingsScreen();
+              } else if (settings.name == '/reports') {
+                page = const ReportScreen();
               } else {
                 switch (settings.name) {
                   case '/':

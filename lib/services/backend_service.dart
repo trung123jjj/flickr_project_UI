@@ -70,7 +70,32 @@ class BackendService {
 
       final data = jsonDecode(response.body);
 
-      // Backend returns array directly
+      if (response.statusCode == 403) {
+        if (data is Map && data['message']?.toString().contains('expired') == true) {
+          final refreshResult = await refreshToken();
+          if (refreshResult['success'] == true) {
+            return {
+              'success': false,
+              'message': 'Token refreshed, please retry.',
+              'data': null,
+              'tokenRefreshed': true,
+            };
+          }
+          await AuthService.logout();
+          return {
+            'success': false,
+            'message': 'Session expired. Please login again.',
+            'data': null,
+            'tokenExpired': true,
+          };
+        }
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Request failed',
+          'data': null,
+        };
+      }
+
       if (data is List) {
         return {
           'success': true,
@@ -80,7 +105,7 @@ class BackendService {
       }
 
       return {
-        'success': response.statusCode == 200,
+        'success': false,
         'message': data['message'] ?? 'Failed to load comments',
         'data': data,
       };
@@ -143,11 +168,7 @@ class BackendService {
         headers: headers,
       );
 
-      final data = jsonDecode(response.body);
-      return {
-        'success': response.statusCode == 200,
-        'data': data,
-      };
+      return _handleResponse(response);
     } catch (e) {
       return {
         'success': false,
@@ -166,11 +187,7 @@ class BackendService {
         body: jsonEncode({'movieIds': movieIds}),
       );
 
-      final data = jsonDecode(response.body);
-      return {
-        'success': response.statusCode == 200,
-        'data': data,
-      };
+      return _handleResponse(response);
     } catch (e) {
       return {
         'success': false,
@@ -204,6 +221,31 @@ class BackendService {
     }
   }
 
+  static Future<Map<String, dynamic>> refreshToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final refreshToken = prefs.getString('refresh_token');
+      if (refreshToken == null) return {'success': false};
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/auth/refresh'),
+        headers: {'Authorization': 'Bearer $refreshToken'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final newToken = data['accessToken']?.toString();
+        if (newToken != null) {
+          await prefs.setString('auth_token', newToken);
+          return {'success': true, 'data': data};
+        }
+      }
+      return {'success': false};
+    } catch (e) {
+      return {'success': false};
+    }
+  }
+
   static Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
     final contentType = response.headers['content-type'];
     if (contentType == null || !contentType.contains('application/json')) {
@@ -219,6 +261,15 @@ class BackendService {
 
       if (response.statusCode == 403 &&
           data['message']?.toString().contains('expired') == true) {
+        final refreshResult = await refreshToken();
+        if (refreshResult['success'] == true) {
+          return {
+            'success': false,
+            'message': 'Token refreshed, please retry.',
+            'data': null,
+            'tokenRefreshed': true,
+          };
+        }
         await AuthService.logout();
         return {
           'success': false,
@@ -390,6 +441,23 @@ class BackendService {
       final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$_baseUrl/api/comments/$commentId/like'),
+        headers: headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getReports() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/reports'),
         headers: headers,
       );
       return _handleResponse(response);
