@@ -95,19 +95,12 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final result = await BackendService.signup(username, password);
-
-      if (result['success'] == true) {
-        final loginResult = await login(username, password);
-        return loginResult;
-      } else {
-        _isLoading = false;
-        notifyListeners();
-        return result;
-      }
+      return result;
     } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return {'success': false, 'message': 'Connection error: $e'};
     }
   }
 

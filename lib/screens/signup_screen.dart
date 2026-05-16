@@ -53,7 +53,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
       if (result['success'] == true) {
         if (mounted) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Signup successful!'), backgroundColor: Colors.green),
+          );
+          Navigator.of(context).pop({'username': username, 'password': password});
         }
       } else {
         _showMessage(result['message'] ?? 'Signup failed');
