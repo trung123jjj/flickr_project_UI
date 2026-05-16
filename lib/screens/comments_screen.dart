@@ -189,7 +189,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     _displayItems = sorted.map((c) {
       final parent = c.parentCommentId != null ? parentMap[c.parentCommentId] : null;
-      return _DisplayItem(c, parent?.content, parent?.username, parent?.isDeleted ?? false);
+      final isParentGone = c.parentCommentId != null && parent == null;
+      return _DisplayItem(c, parent?.content, parent?.username, isParentGone || (parent?.isDeleted ?? false));
     }).toList();
     _needsRebuild = false;
   }
@@ -503,7 +504,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                 final message = selectedReason ?? otherController.text.trim();
                 if (message.isEmpty) return;
                 Navigator.pop(ctx);
-                _submitReport(comment.username, message);
+                _submitReport(comment.username, message, commentContent: comment.content);
               },
               child: const Text('Submit', style: TextStyle(color: Color(0xFFE53935))),
             ),
@@ -513,8 +514,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
     );
   }
 
-  Future<void> _submitReport(String username, String message) async {
-    final result = await BackendService.reportComment(username, message);
+  Future<void> _submitReport(String username, String message, {String? commentContent}) async {
+    final result = await BackendService.reportComment(username, message, commentContent: commentContent);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -810,13 +811,15 @@ class _CommentsScreenState extends State<CommentsScreen> {
                               fontStyle: FontStyle.italic,
                             ),
                             children: [
-                              TextSpan(text: 'reply to ${parentUsername ?? comment.username}'),
+                              TextSpan(text: 'reply to ${isParentDeleted && parentUsername == null ? '[deleted user]' : parentUsername ?? comment.username}'),
                               if (parentContent != null)
                                 TextSpan(
                                   text: isParentDeleted
                                       ? ': comment removed'
                                       : ': ${parentContent.length > 50 ? '${parentContent.substring(0, 50)}...' : parentContent}',
                                 ),
+                              if (isParentDeleted && parentContent == null)
+                                const TextSpan(text: ': [deleted comment]'),
                             ],
                           ),
                         ),

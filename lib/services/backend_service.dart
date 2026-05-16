@@ -470,16 +470,52 @@ class BackendService {
     }
   }
 
-  static Future<Map<String, dynamic>> reportComment(String username, String message) async {
+  static Future<Map<String, dynamic>> deleteReport(String reportId) async {
     try {
       final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/api/reports/$reportId'),
+        headers: headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> deleteUser(String username) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/api/users/$username'),
+        headers: headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> reportComment(String username, String message, {String? commentContent}) async {
+    try {
+      final headers = await _getHeaders();
+      final body = <String, dynamic>{
+        'username': username,
+        'message': message,
+      };
+      if (commentContent != null) body['commentContent'] = commentContent;
       final response = await http.post(
         Uri.parse('$_baseUrl/api/reports'),
         headers: headers,
-        body: jsonEncode({
-          'username': username,
-          'message': message,
-        }),
+        body: jsonEncode(body),
       );
       return _handleResponse(response);
     } catch (e) {

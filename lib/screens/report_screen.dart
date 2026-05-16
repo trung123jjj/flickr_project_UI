@@ -43,6 +43,77 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
+  void _confirmDeleteUser(BuildContext ctx, String username, String reportId) {
+    showDialog(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        title: const Text('Delete User'),
+        content: Text('Permanently delete @$username and all their data?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              final result = await BackendService.deleteUser(username);
+              if (mounted) {
+                await BackendService.deleteReport(reportId);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(result['success'] == true
+                        ? 'User @$username deleted'
+                        : result['message'] ?? 'Failed to delete user'),
+                    backgroundColor: const Color(0xFFE53935),
+                  ),
+                );
+                _loadReports();
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Color(0xFFE53935))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteReport(BuildContext ctx, String reportId) {
+    showDialog(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        title: const Text('Delete Report'),
+        content: const Text('Delete this report?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              final result = await BackendService.deleteReport(reportId);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(result['success'] == true
+                        ? 'Report deleted'
+                        : result['message'] ?? 'Failed to delete report'),
+                    backgroundColor: const Color(0xFFE53935),
+                  ),
+                );
+                _loadReports();
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Color(0xFFE53935))),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -83,6 +154,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       final report = _reports[index];
                       final username = report['username']?.toString() ?? 'Unknown';
                       final message = report['message']?.toString() ?? '';
+                      final commentContent = report['commentContent']?.toString() ?? '';
                       final createdAt = report['createdAt']?.toString() ?? '';
 
                       DateTime? timestamp;
@@ -94,36 +166,108 @@ class _ReportScreenState extends State<ReportScreen> {
                           ? '${timestamp.day.toString().padLeft(2, '0')}/${timestamp.month.toString().padLeft(2, '0')}/${timestamp.year} ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}'
                           : '';
 
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                        leading: CircleAvatar(
-                          backgroundColor: const Color(0xFFE53935).withValues(alpha: 0.2),
-                          child: const Icon(Icons.flag_outlined, color: Color(0xFFE53935), size: 20),
-                        ),
-                        title: Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: '@$username',
-                                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE53935), fontSize: 15),
-                              ),
-                              const TextSpan(
-                                text: ' is reported',
-                                style: TextStyle(fontSize: 15),
-                              ),
-                            ],
-                          ),
-                        ),
-                        subtitle: Column(
+                      final reportId = report['_id']?.toString() ?? '';
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 4),
-                            Text(message, style: const TextStyle(fontSize: 14)),
-                            if (timeText.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(timeText, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5))),
+                            CircleAvatar(
+                              backgroundColor: const Color(0xFFE53935).withValues(alpha: 0.2),
+                              child: const Icon(Icons.flag_outlined, color: Color(0xFFE53935), size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text.rich(
+                                    TextSpan(
+                                      children: [
+                                        TextSpan(
+                                          text: '@$username',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE53935), fontSize: 15),
+                                        ),
+                                        const TextSpan(
+                                          text: ' is reported',
+                                          style: TextStyle(fontSize: 15),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(message, style: const TextStyle(fontSize: 14)),
+                                  if (commentContent.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        'Reported content: $commentContent',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ),
+                                  if (timeText.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(timeText, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5))),
+                                    ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      SizedBox(
+                                        height: 32,
+                                        child: TextButton.icon(
+                                          icon: const Icon(Icons.person_remove, size: 16, color: Color(0xFFE53935)),
+                                          label: const Text('Delete user', style: TextStyle(fontSize: 12, color: Color(0xFFE53935))),
+                                          onPressed: () => _confirmDeleteUser(context, username, reportId),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                                            backgroundColor: const Color(0xFFE53935).withValues(alpha: 0.1),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      SizedBox(
+                                        height: 32,
+                                        child: TextButton.icon(
+                                          icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFE53935)),
+                                          label: const Text('Delete report', style: TextStyle(fontSize: 12, color: Color(0xFFE53935))),
+                                          onPressed: () => _confirmDeleteReport(context, reportId),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                                            backgroundColor: const Color(0xFFE53935).withValues(alpha: 0.1),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      SizedBox(
+                                        height: 32,
+                                        child: TextButton.icon(
+                                          icon: const Icon(Icons.notifications_outlined, size: 16, color: Colors.grey),
+                                          label: const Text('Notice', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                          onPressed: () {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Notice feature coming soon')),
+                                            );
+                                          },
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                                            backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
+                            ),
                           ],
                         ),
                       );
