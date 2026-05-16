@@ -123,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 height: 52,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFFFF6B00), Color(0xFFFFAB40)], begin: Alignment.centerLeft, end: Alignment.centerRight),
+                    color: const Color(0xFFE53935),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ElevatedButton(
