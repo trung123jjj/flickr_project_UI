@@ -67,7 +67,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: const Color(0xFFFF6B00)),
+      SnackBar(content: Text(message), backgroundColor: const Color(0xFFE53935)),
     );
   }
 

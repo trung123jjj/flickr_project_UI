@@ -402,6 +402,27 @@ class BackendService {
     }
   }
 
+  static Future<Map<String, dynamic>> reportComment(String username, String message) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/reports'),
+        headers: headers,
+        body: jsonEncode({
+          'username': username,
+          'message': message,
+        }),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e',
+        'data': null,
+      };
+    }
+  }
+
   static Future<Map<String, dynamic>> uploadCommentImage(File imageFile) async {
     try {
       final prefs = await SharedPreferences.getInstance();

@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (username.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter username and password'), backgroundColor: Color(0xFFFF6B00)),
+        const SnackBar(content: Text('Please enter username and password'), backgroundColor: const Color(0xFFE53935)),
       );
       return;
     }
@@ -46,14 +46,14 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['message'] ?? 'Login failed'), backgroundColor: Color(0xFFFF6B00)),
+            SnackBar(content: Text(result['message'] ?? 'Login failed'), backgroundColor: const Color(0xFFE53935)),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Connection error. Please try again.'), backgroundColor: Color(0xFFFF6B00)),
+          const SnackBar(content: Text('Connection error. Please try again.'), backgroundColor: const Color(0xFFE53935)),
         );
       }
     } finally {
@@ -110,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: GestureDetector(
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Forgot password feature coming soon'), backgroundColor: Color(0xFFFF6B00)),
+                        const SnackBar(content: Text('Forgot password feature coming soon'), backgroundColor: const Color(0xFFE53935)),
                       );
                     },
                     child: const Text('Forget Your Password?', style: TextStyle(color: Colors.white70, fontSize: 14)),

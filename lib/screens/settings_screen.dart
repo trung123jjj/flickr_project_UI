@@ -72,7 +72,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.pop(ctx, true);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(res['message'] ?? 'Failed'), backgroundColor: const Color(0xFFFF6B00)),
+                  SnackBar(content: Text(res['message'] ?? 'Failed'), backgroundColor: const Color(0xFFE53935)),
                 );
               }
             },
@@ -143,7 +143,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.pop(ctx, true);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(res['message'] ?? 'Failed'), backgroundColor: const Color(0xFFFF6B00)),
+                  SnackBar(content: Text(res['message'] ?? 'Failed'), backgroundColor: const Color(0xFFE53935)),
                 );
               }
             },
@@ -228,7 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result['message'] ?? 'Failed to update avatar'),
-              backgroundColor: const Color(0xFFFF6B00),
+              backgroundColor: const Color(0xFFE53935),
             ),
           );
         }
