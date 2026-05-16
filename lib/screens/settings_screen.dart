@@ -294,6 +294,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _showChangePasswordDialog,
           ),
           const Divider(color: Colors.white12, height: 1),
+          if (context.watch<AuthProvider>().isAdmin)
+            _buildMenuItem(
+              icon: Icons.flag_outlined,
+              title: 'Reports',
+              onTap: () => Navigator.pushNamed(context, '/reports'),
+            ),
+          if (context.watch<AuthProvider>().isAdmin)
+            const Divider(color: Colors.white12, height: 1),
           const _ThemeModeTile(),
           const Divider(color: Colors.white12, height: 1),
           _buildMenuItem(
