@@ -324,6 +324,16 @@ class _CommentsScreenState extends State<CommentsScreen> {
                   setState(() => _replyingTo = comment);
                 },
               ),
+              if (!isOwn && !comment.isDeleted)
+                ListTile(
+                  leading: const Icon(Icons.flag_outlined, color: Color(0xFFE53935)),
+                  title: const Text('Report', style: TextStyle(fontWeight: FontWeight.w500, color: Color(0xFFE53935))),
+                  subtitle: Text('@${comment.username}'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showReportDialog(comment);
+                  },
+                ),
               if (isOwn)
                 ListTile(
                   leading: const Icon(Icons.delete_outline, color: Color(0xFFE53935)),
@@ -410,10 +420,112 @@ class _CommentsScreenState extends State<CommentsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message'] ?? 'Failed to delete comment'),
-            backgroundColor: const Color(0xFFFF6B00),
+            backgroundColor: const Color(0xFFE53935),
           ),
         );
       }
+    }
+  }
+
+  void _showReportDialog(Comment comment) {
+    final reportReasons = [
+      'Harassment',
+      'Violence or dangerous organisations',
+      'Nudity or sexual activity',
+      'Scam or fraud',
+      'Selling or promoting restricted item',
+    ];
+
+    String? selectedReason;
+    final otherController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: Theme.of(context).cardColor,
+          title: const Text('Report Comment'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                Text(
+                  'Why are you reporting @${comment.username}?',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...reportReasons.map((reason) => RadioListTile<String>(
+                  title: Text(reason, style: const TextStyle(fontSize: 14)),
+                  value: reason,
+                  groupValue: selectedReason,
+                  activeColor: const Color(0xFFE53935),
+                  onChanged: (value) {
+                    setDialogState(() {
+                      selectedReason = value;
+                      otherController.clear();
+                    });
+                  },
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                )),
+                const Divider(height: 4),
+                TextField(
+                  controller: otherController,
+                  decoration: InputDecoration(
+                    hintText: 'Other',
+                    border: const OutlineInputBorder(),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Color(0xFFE53935)),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  maxLines: 3,
+                  minLines: 1,
+                  onTap: () {
+                    setDialogState(() => selectedReason = null);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+            ),
+            TextButton(
+              onPressed: () {
+                final message = selectedReason ?? otherController.text.trim();
+                if (message.isEmpty) return;
+                Navigator.pop(ctx);
+                _submitReport(comment.username, message);
+              },
+              child: const Text('Submit', style: TextStyle(color: Color(0xFFE53935))),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitReport(String username, String message) async {
+    final result = await BackendService.reportComment(username, message);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result['success'] == true
+                ? 'Report submitted successfully'
+                : result['message'] ?? 'Failed to submit report',
+          ),
+          backgroundColor: const Color(0xFFE53935),
+        ),
+      );
     }
   }
 
@@ -432,7 +544,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Failed to upload image'),
-              backgroundColor: Color(0xFFFF6B00),
+              backgroundColor: const Color(0xFFE53935),
             ),
           );
         }
@@ -488,7 +600,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result['message'] ?? 'Failed to post comment'),
-              backgroundColor: const Color(0xFFFF6B00),
+              backgroundColor: const Color(0xFFE53935),
             ),
           );
         }
@@ -497,7 +609,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Connection error. Please try again.'),
-          backgroundColor: Color(0xFFFF6B00),
+          backgroundColor: const Color(0xFFE53935),
         ),
       );
     }
