@@ -39,7 +39,6 @@ class _CommentsScreenState extends State<CommentsScreen> {
   bool _needsRebuild = true;
   IO.Socket? _socket;
   final Set<String?> _highlightedComments = {};
-  final ScrollController _scrollController = ScrollController();
   bool _socketConnected = false;
 
   @override
@@ -58,7 +57,6 @@ class _CommentsScreenState extends State<CommentsScreen> {
     _socket?.disconnect();
     _socket?.dispose();
     _pollTimer?.cancel();
-    _scrollController.dispose();
     _commentController.dispose();
     super.dispose();
   }
@@ -70,18 +68,6 @@ class _CommentsScreenState extends State<CommentsScreen> {
       if (!_socketConnected) {
         print('[Poll] Socket not connected, polling...');
         _loadComments();
-      }
-    });
-  }
-
-  void _scrollToLatest() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
       }
     });
   }
@@ -130,7 +116,6 @@ class _CommentsScreenState extends State<CommentsScreen> {
                 _markNeedsRebuild();
               }
             });
-            _scrollToLatest();
             Future.delayed(const Duration(milliseconds: 800), () {
               if (mounted) setState(() => _highlightedComments.remove(comment.id));
             });
@@ -186,7 +171,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
       if (c.id != null) parentMap[c.id!] = c;
     }
     final sorted = List<Comment>.from(_comments)
-      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
     _displayItems = sorted.map((c) {
       final parent = c.parentCommentId != null ? parentMap[c.parentCommentId] : null;
       final isParentGone = c.parentCommentId != null && parent == null;
@@ -235,7 +220,6 @@ class _CommentsScreenState extends State<CommentsScreen> {
     setState(() => _isLoading = true);
     await _loadComments();
     setState(() => _isLoading = false);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToLatest());
   }
 
   Future<void> _loadComments() async {
@@ -264,7 +248,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
               print('Error parsing comment: $e, json=$json');
               rethrow;
             }
-          }).toList().reversed.toList();
+          }).toList();
           _markNeedsRebuild();
         });
       } else {
@@ -589,7 +573,6 @@ class _CommentsScreenState extends State<CommentsScreen> {
           _comments.add(newComment);
           _markNeedsRebuild();
         });
-        _scrollToLatest();
         Future.delayed(const Duration(milliseconds: 800), () {
           if (mounted) setState(() => _highlightedComments.remove(newComment.id));
         });
@@ -699,7 +682,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                 : _comments.isEmpty
                     ? _buildEmptyState()
                     : ListView.builder(
-                        controller: _scrollController,
+                        reverse: true,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: _displayItems.length,
                         itemBuilder: (context, index) {
