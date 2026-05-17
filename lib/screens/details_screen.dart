@@ -376,7 +376,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                           },
                           icon: const Icon(Icons.comment, color: Colors.white),
                           label: const Text(
-                            'Write a Comment',
+                            'Join Chat Room',
                             style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           style: ElevatedButton.styleFrom(

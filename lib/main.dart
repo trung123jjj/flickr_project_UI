@@ -247,7 +247,11 @@ class _GlobalShakeHandlerState extends State<GlobalShakeHandler>
       setState(() => _showOverlay = false);
 
       if (movie != null) {
-        await widget.navigatorKey.currentState?.pushNamed('/details', arguments: movie);
+        await widget.navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/details',
+          (route) => route.settings.name != '/details',
+          arguments: movie,
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
