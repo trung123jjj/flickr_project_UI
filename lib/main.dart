@@ -285,21 +285,11 @@ class _GlobalShakeHandlerState extends State<GlobalShakeHandler>
           Positioned.fill(
             child: Container(
               color: Colors.black.withValues(alpha: 0.85),
-              child: Align(
-                alignment: Alignment.center,
-                child: SizedBox(
-                  width: 800,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Image.asset(
-                        'assets/images/agnes-tachyon-tachyon.gif',
-                        width: 320,
-                        height: 320,
-                      ),
-                    ],
-                  ),
+              child: Center(
+                child: Image.asset(
+                  'assets/images/processed (1).gif',
+                  width: 320,
+                  height: 320,
                 ),
               ),
             ),
