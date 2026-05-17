@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import '../models/movie.dart';
 import '../models/genre.dart';
@@ -179,5 +180,52 @@ class TmdbService {
       print('TmdbService.searchMovies error: $e');
       return [];
     }
+  }
+
+  static Future<Movie?> getRandomMovie() async {
+    final random = Random();
+    final currentYear = DateTime.now().year;
+
+    // Attempt 1: discover với year ngẫu nhiên, page nhỏ để luôn có kết quả
+    for (int attempt = 0; attempt < 2; attempt++) {
+      try {
+        final year = random.nextInt(currentYear - 1980) + 1980;
+        final page = random.nextInt(5) + 1;
+
+        final response = await http.get(
+          Uri.parse('$_baseUrl/discover/movie?primary_release_year=$year&page=$page&sort_by=popularity.desc&vote_count.gte=10&language=en-US'),
+          headers: _headers,
+        ).timeout(const Duration(seconds: 5));
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final List results = data['results'];
+          if (results.isNotEmpty) {
+            return Movie.fromJson(results[random.nextInt(results.length)]);
+          }
+        }
+      } catch (e) {
+        print('TmdbService.getRandomMovie attempt $attempt error: $e');
+      }
+    }
+
+    // Fallback: popular movies (luôn có kết quả)
+    try {
+      final page = random.nextInt(500) + 1;
+      final response = await http.get(
+        Uri.parse('$_baseUrl/movie/popular?language=en-US&page=$page'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List results = data['results'];
+        if (results.isNotEmpty) {
+          return Movie.fromJson(results[random.nextInt(results.length)]);
+        }
+      }
+    } catch (e) {
+      print('TmdbService.getRandomMovie fallback error: $e');
+    }
+    return null;
   }
 }

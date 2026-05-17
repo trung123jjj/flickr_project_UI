@@ -106,14 +106,15 @@ class _DetailsScreenState extends State<DetailsScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(5, (index) {
                   final star = index + 1;
-                  return IconButton(
-                    onPressed: () {
-                      setDialogState(() => tempRating = star.toDouble());
-                    },
-                    icon: Icon(
-                      star <= tempRating ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                      size: 36,
+                  return GestureDetector(
+                    onTap: () => setDialogState(() => tempRating = star.toDouble()),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        star <= tempRating ? Icons.star : Icons.star_border,
+                        color: Colors.amber,
+                        size: 36,
+                      ),
                     ),
                   );
                 }),
@@ -311,37 +312,40 @@ class _DetailsScreenState extends State<DetailsScreen> {
                     children: [
                       Text(widget.movie.title, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 30, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
-                      Row(children: [
-                        GestureDetector(
-                          onTap: _showRatingDialog,
-                          child: Row(
-                            children: [
-                              const Icon(Icons.star, color: Colors.amber, size: 22),
-                              const SizedBox(width: 6),
-                              Text(
-                                      _averageRating != null && _averageRating! > 0
-                                          ? _averageRating!.toStringAsFixed(1)
-                                          : '0.0',
-                                      style: const TextStyle(color: Colors.amber, fontSize: 20, fontWeight: FontWeight.bold),
-                                    ),
-                              if (_totalRatings > 0) ...[
-                                const SizedBox(width: 4),
-                                Text('($_totalRatings)', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14)),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(children: [
+                          GestureDetector(
+                            onTap: _showRatingDialog,
+                            child: Row(
+                              children: [
+                                const Icon(Icons.star, color: Colors.amber, size: 22),
+                                const SizedBox(width: 6),
+                                Text(
+                                        _averageRating != null && _averageRating! > 0
+                                            ? _averageRating!.toStringAsFixed(1)
+                                            : '0.0',
+                                        style: const TextStyle(color: Colors.amber, fontSize: 20, fontWeight: FontWeight.bold),
+                                      ),
+                                if (_totalRatings > 0) ...[
+                                  const SizedBox(width: 4),
+                                  Text('($_totalRatings)', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14)),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        if (_userRating != null) ...[
-                          const Icon(Icons.person, color: Color(0xFFE53935), size: 18),
-                          const SizedBox(width: 4),
-                          Text('Yours: ${_userRating!.toStringAsFixed(1)}', style: const TextStyle(color: Color(0xFFE53935), fontSize: 16)),
                           const SizedBox(width: 16),
-                        ],
-                        const Icon(Icons.calendar_today, color: Colors.white70, size: 18),
-                        const SizedBox(width: 8),
-                        Text(widget.movie.releaseDate, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),
-                      ]),
+                          if (_userRating != null) ...[
+                            const Icon(Icons.person, color: Color(0xFFE53935), size: 18),
+                            const SizedBox(width: 4),
+                            Text('Yours: ${_userRating!.toStringAsFixed(1)}', style: const TextStyle(color: Color(0xFFE53935), fontSize: 16)),
+                            const SizedBox(width: 16),
+                          ],
+                          const Icon(Icons.calendar_today, color: Colors.white70, size: 18),
+                          const SizedBox(width: 8),
+                          Text(widget.movie.releaseDate, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),
+                        ]),
+                      ),
                       const SizedBox(height: 20),
                       Wrap(spacing: 8, runSpacing: 8, children: genreNames.map((name) => _buildGenreChip(name)).toList()),
                       const SizedBox(height: 30),

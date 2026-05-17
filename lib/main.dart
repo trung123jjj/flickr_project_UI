@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+import 'dart:async';
+import 'dart:math';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/intro_screen.dart';
@@ -16,6 +19,8 @@ import 'screens/report_screen.dart';
 import 'screens/notification_screen.dart';
 import 'models/movie.dart';
 import 'services/tmdb_service.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -111,6 +116,8 @@ class MyApp extends StatelessWidget {
           );
 
           return MaterialApp(
+            navigatorKey: navigatorKey,
+            builder: (context, child) => GlobalShakeHandler(navigatorKey: navigatorKey, child: child!),
             title: 'Flickr App',
             debugShowCheckedModeBanner: false,
             theme: lightTheme,
@@ -182,6 +189,127 @@ class MyApp extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class GlobalShakeHandler extends StatefulWidget {
+  final Widget child;
+  final GlobalKey<NavigatorState> navigatorKey;
+  const GlobalShakeHandler({super.key, required this.navigatorKey, required this.child});
+
+  @override
+  State<GlobalShakeHandler> createState() => _GlobalShakeHandlerState();
+}
+
+class _GlobalShakeHandlerState extends State<GlobalShakeHandler>
+    with WidgetsBindingObserver {
+  StreamSubscription? _accelerometerSubscription;
+  int _shakeCount = 0;
+  DateTime _shakeWindowStart = DateTime.now();
+  bool _showOverlay = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initShakeDetection();
+  }
+
+  void _initShakeDetection() {
+    _accelerometerSubscription = accelerometerEventStream().listen((event) {
+      final magnitude = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
+      if (magnitude > 25) {
+        final now = DateTime.now();
+        if (now.difference(_shakeWindowStart).inMilliseconds > 2000) {
+          _shakeCount = 1;
+          _shakeWindowStart = now;
+        } else {
+          _shakeCount++;
+          if (_shakeCount >= 3) {
+            _shakeCount = 0;
+            _onShakeDetected();
+          }
+        }
+      }
+    });
+  }
+
+  Future<void> _onShakeDetected() async {
+    if (_showOverlay) return;
+    setState(() => _showOverlay = true);
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    try {
+      final movie = await TmdbService.getRandomMovie();
+      if (!mounted) return;
+
+      setState(() => _showOverlay = false);
+
+      if (movie != null) {
+        await widget.navigatorKey.currentState?.pushNamed('/details', arguments: movie);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not find a movie. Try shaking again!'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _showOverlay = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Failed to fetch random movie. Check your connection.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _accelerometerSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        widget.child,
+        if (_showOverlay)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.85),
+              child: Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: 800,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/agnes-tachyon-tachyon.gif',
+                        width: 320,
+                        height: 320,
+                      ),
+                      Image.asset(
+                        'assets/images/giphy-loading.gif',
+                        height: 60,
+                        fit: BoxFit.fill,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

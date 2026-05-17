@@ -21,6 +21,7 @@ dependencies:
   permission_handler: ^11.3.1
   provider: ^6.1.5+1
   socket_io_client: ^3.0.2
+  sensors_plus: ^6.0.0
 
 dev_dependencies:
   flutter_test:
