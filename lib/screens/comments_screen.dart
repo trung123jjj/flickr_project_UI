@@ -670,7 +670,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'MOVIE CHAT SECTION',
+                      'MOVIE CHAT ROOM',
                       style: TextStyle(
                         color: Color(0xFFE53935),
                         fontSize: 12,
@@ -776,9 +776,9 @@ class _CommentsScreenState extends State<CommentsScreen> {
     Widget commentWidget = GestureDetector(
       onLongPress: comment.isDeleted ? null : () => _showReplyMenu(comment),
       child: Padding(
-        padding: EdgeInsets.only(
+        padding: const EdgeInsets.only(
           bottom: 6,
-          left: isReply ? 48.0 : 8.0,
+          left: 8,
           right: 8,
         ),
         child: Row(
