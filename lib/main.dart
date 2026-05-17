@@ -298,11 +298,6 @@ class _GlobalShakeHandlerState extends State<GlobalShakeHandler>
                         width: 320,
                         height: 320,
                       ),
-                      Image.asset(
-                        'assets/images/giphy-loading.gif',
-                        height: 60,
-                        fit: BoxFit.fill,
-                      ),
                     ],
                   ),
                 ),
