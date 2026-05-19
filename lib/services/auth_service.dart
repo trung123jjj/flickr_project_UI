@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'secure_storage_service.dart';
 
 class AuthService {
   static Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('current_user');
-    await prefs.remove('auth_token');
+    await SecureStorageService.remove('current_user');
+    await SecureStorageService.remove('auth_token');
   }
 
   static Future<bool> isLoggedIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('current_user') != null;
+    final user = await SecureStorageService.getCurrentUser();
+    return user != null;
   }
 
   static Future<String?> getCurrentUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('current_user');
+    return await SecureStorageService.getCurrentUser();
   }
 }

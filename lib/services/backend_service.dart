@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import 'auth_service.dart';
+import 'secure_storage_service.dart';
 import 'dart:io';
 import 'package:http_parser/http_parser.dart';
 
@@ -151,8 +151,7 @@ class BackendService {
   }
 
   static Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    final token = await SecureStorageService.getAuthToken();
 
     final headers = <String, String>{
       'Content-Type': 'application/json',
@@ -226,8 +225,7 @@ class BackendService {
 
   static Future<Map<String, dynamic>> refreshToken() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final refreshToken = prefs.getString('refresh_token');
+      final refreshToken = await SecureStorageService.getRefreshToken();
       if (refreshToken == null) return {'success': false};
 
       final response = await http.post(
@@ -239,7 +237,7 @@ class BackendService {
         final data = jsonDecode(response.body);
         final newToken = data['accessToken']?.toString();
         if (newToken != null) {
-          await prefs.setString('auth_token', newToken);
+          await SecureStorageService.saveAuthToken(newToken);
           return {'success': true, 'data': data};
         }
       }
@@ -298,8 +296,7 @@ class BackendService {
 
   static Future<Map<String, dynamic>> updateAvatar(File avatarFile) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
+      final token = await SecureStorageService.getAuthToken();
 
       if (token == null || token.isEmpty) {
         return {
@@ -386,9 +383,8 @@ class BackendService {
       if (result['success'] == true && result['data'] != null) {
         final data = result['data'] as Map;
         if (data['accessToken'] != null) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('auth_token', data['accessToken'].toString());
-          await prefs.setString('current_user', data['username'].toString());
+          await SecureStorageService.saveAuthToken(data['accessToken'].toString());
+          await SecureStorageService.saveCurrentUser(data['username'].toString());
         }
       }
       return result;
@@ -613,8 +609,7 @@ class BackendService {
 
   static Future<Map<String, dynamic>> uploadCommentImage(File imageFile) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
+      final token = await SecureStorageService.getAuthToken();
 
       if (token == null || token.isEmpty) {
         return {

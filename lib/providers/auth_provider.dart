@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../services/backend_service.dart';
+import '../services/secure_storage_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   String? _currentUser;
@@ -21,12 +21,12 @@ class AuthProvider extends ChangeNotifier {
   bool get isAdmin => _role == 'admin';
 
   Future<void> loadSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    _currentUser = prefs.getString('current_user');
-    _authToken = prefs.getString('auth_token');
-    _avatarUrl = ApiConfig.normalizeUrl(prefs.getString('user_avatar'));
-    _userId = prefs.getString('user_id');
-    _role = prefs.getString('user_role');
+    _currentUser = await SecureStorageService.getCurrentUser();
+    _authToken = await SecureStorageService.getAuthToken();
+    final rawAvatar = await SecureStorageService.getUserAvatar();
+    _avatarUrl = ApiConfig.normalizeUrl(rawAvatar);
+    _userId = await SecureStorageService.getUserId();
+    _role = await SecureStorageService.getUserRole();
     notifyListeners();
   }
 
@@ -58,15 +58,14 @@ class AuthProvider extends ChangeNotifier {
           return {'success': false, 'message': 'No token received from server'};
         }
 
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('current_user', username);
-        await prefs.setString('auth_token', token);
-        if (refreshToken != null) await prefs.setString('refresh_token', refreshToken);
-        if (userId != null) await prefs.setString('user_id', userId);
-        if (role != null) await prefs.setString('user_role', role);
+        await SecureStorageService.saveCurrentUser(username);
+        await SecureStorageService.saveAuthToken(token);
+        if (refreshToken != null) await SecureStorageService.saveRefreshToken(refreshToken);
+        if (userId != null) await SecureStorageService.saveUserId(userId);
+        if (role != null) await SecureStorageService.saveUserRole(role);
         if (avatarUrl != null && avatarUrl.isNotEmpty) {
           final normalized = ApiConfig.normalizeUrl(avatarUrl);
-          await prefs.setString('user_avatar', normalized);
+          await SecureStorageService.saveUserAvatar(normalized);
           _avatarUrl = normalized;
         }
 
@@ -105,13 +104,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('current_user');
-    await prefs.remove('auth_token');
-    await prefs.remove('refresh_token');
-    await prefs.remove('user_id');
-    await prefs.remove('user_avatar');
-    await prefs.remove('user_role');
+    await SecureStorageService.clearAll();
 
     _currentUser = null;
     _authToken = null;
@@ -131,15 +124,13 @@ class AuthProvider extends ChangeNotifier {
         _avatarUrl = ApiConfig.normalizeUrl(rawUrl);
         if (userRole != null) {
           _role = userRole;
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('user_role', userRole);
+          await SecureStorageService.saveUserRole(userRole);
         }
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_avatar', _avatarUrl ?? '');
+        await SecureStorageService.saveUserAvatar(_avatarUrl ?? '');
         notifyListeners();
       }
     } catch (e) {
-      print('AuthProvider.loadUserProfile error: $e');
+      debugPrint('AuthProvider.loadUserProfile error: $e');
     }
   }
 
