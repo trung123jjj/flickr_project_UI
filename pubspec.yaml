@@ -28,9 +28,18 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
 
 dependency_overrides:
   flutter_inappwebview: ^6.0.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo_official.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/images/logo_official.png"
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true

@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:math';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
+import 'screens/splash_screen.dart';
 import 'screens/intro_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -123,7 +124,7 @@ class MyApp extends StatelessWidget {
             theme: lightTheme,
             darkTheme: darkTheme,
             themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-            initialRoute: authProvider.isLoggedIn ? '/home' : '/',
+            initialRoute: authProvider.isLoggedIn ? '/home' : '/splash',
             onGenerateRoute: (settings) {
               Widget page;
 
@@ -164,6 +165,9 @@ class MyApp extends StatelessWidget {
                 page = const NotificationScreen();
               } else {
                 switch (settings.name) {
+                  case '/splash':
+                    page = const SplashScreen();
+                    break;
                   case '/':
                     page = const IntroScreen();
                     break;
