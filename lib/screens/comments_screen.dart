@@ -105,22 +105,22 @@ class _CommentsScreenState extends State<CommentsScreen> {
       });
 
       _socket?.on("newComment", (data) {
-        if (data is Map<String, dynamic>) {
-          final comment = Comment.fromJson(data);
-          if (mounted) {
-            setState(() {
-              final exists = _comments.any((c) => c.id == comment.id);
-              if (!exists) {
-                _comments.add(comment);
-                _highlightedComments.add(comment.id);
-                _markNeedsRebuild();
-              }
-            });
-            Future.delayed(const Duration(milliseconds: 800), () {
-              if (mounted) setState(() => _highlightedComments.remove(comment.id));
-            });
+        if (data is! Map<String, dynamic>) return;
+        if (!mounted) return;
+        final comment = Comment.fromJson(data);
+        final currentUser = context.read<AuthProvider>().currentUser;
+        if (comment.username == currentUser) return;
+        setState(() {
+          final exists = _comments.any((c) => c.id == comment.id);
+          if (!exists) {
+            _comments.add(comment);
+            _highlightedComments.add(comment.id);
+            _markNeedsRebuild();
           }
-        }
+        });
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted) setState(() => _highlightedComments.remove(comment.id));
+        });
       });
 
       _socket?.on("commentUpdated", (data) {
@@ -538,45 +538,60 @@ class _CommentsScreenState extends State<CommentsScreen> {
       }
     }
 
+    final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+    final tempComment = Comment(
+      id: tempId,
+      username: username,
+      content: content,
+      timestamp: DateTime.now(),
+      avatarUrl: auth.avatarUrl,
+      imageUrl: imageUrl,
+      parentCommentId: _replyingTo?.id,
+    );
+
+    _commentController.clear();
+    setState(() {
+      _comments.add(tempComment);
+      _highlightedComments.add(tempId);
+      _replyingTo = null;
+      _selectedImage = null;
+      _markNeedsRebuild();
+    });
+
     try {
       final result = await BackendService.createComment(
         widget.movie.id,
         content,
         imageUrl: imageUrl,
-        parentCommentId: _replyingTo?.id,
+        parentCommentId: tempComment.parentCommentId,
         movieTitle: widget.movie.title,
       );
 
       if (result['success'] == true) {
         final data = result['data'];
-        Comment newComment;
+        Comment serverComment;
         if (data is Map<String, dynamic> && data['_id'] != null) {
-          newComment = Comment.fromJson(data);
+          serverComment = Comment.fromJson(data);
         } else if (data is Map && data['_id'] != null) {
-          newComment = Comment.fromJson(Map<String, dynamic>.from(data));
+          serverComment = Comment.fromJson(Map<String, dynamic>.from(data));
         } else {
-          newComment = Comment(
-            username: username,
-            content: content,
-            timestamp: DateTime.now(),
-            avatarUrl: auth.avatarUrl,
-            imageUrl: imageUrl,
-            parentCommentId: _replyingTo?.id,
-          );
+          serverComment = tempComment;
         }
-        _commentController.clear();
-        FocusScope.of(context).unfocus();
-        _highlightedComments.add(newComment.id);
         setState(() {
-          _replyingTo = null;
-          _selectedImage = null;
-          _comments.add(newComment);
+          final idx = _comments.indexWhere((c) => c.id == tempId);
+          if (idx != -1) {
+            _comments[idx] = serverComment;
+          } else {
+            final exists = _comments.any((c) => c.id == serverComment.id);
+            if (!exists) _comments.add(serverComment);
+          }
           _markNeedsRebuild();
         });
         Future.delayed(const Duration(milliseconds: 800), () {
-          if (mounted) setState(() => _highlightedComments.remove(newComment.id));
+          if (mounted) setState(() => _highlightedComments.remove(serverComment.id));
         });
       } else {
+        setState(() => _comments.removeWhere((c) => c.id == tempId));
         if (result['tokenExpired'] == true) {
           await auth.logout();
           if (mounted) {
@@ -594,6 +609,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
         }
       }
     } catch (e) {
+      setState(() => _comments.removeWhere((c) => c.id == tempId));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Connection error. Please try again.'),
