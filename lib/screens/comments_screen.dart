@@ -21,8 +21,9 @@ class _DisplayItem {
 
 class CommentsScreen extends StatefulWidget {
   final Movie movie;
+  final String? scrollToCommentId;
 
-  const CommentsScreen({super.key, required this.movie});
+  const CommentsScreen({super.key, required this.movie, this.scrollToCommentId});
 
   @override
   State<CommentsScreen> createState() => _CommentsScreenState();
@@ -40,6 +41,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
   IO.Socket? _socket;
   final Set<String?> _highlightedComments = {};
   bool _socketConnected = false;
+  final ScrollController _scrollController = ScrollController();
+  final Map<String?, GlobalKey> _commentKeys = {};
 
   @override
   void initState() {
@@ -51,12 +54,48 @@ class _CommentsScreenState extends State<CommentsScreen> {
     });
   }
 
+  void _scrollToTargetComment() {
+    final targetId = widget.scrollToCommentId;
+    if (targetId == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _tryScrollToComment(targetId);
+    });
+  }
+
+  void _tryScrollToComment(String targetId) {
+    setState(() => _highlightedComments.add(targetId));
+
+    final key = _commentKeys[targetId];
+    if (key != null && key.currentContext != null) {
+      Scrollable.ensureVisible(
+        key.currentContext!,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+        alignment: 0.5,
+      );
+      return;
+    }
+
+    final displayIndex = _displayItems.indexWhere((item) => item.comment.id == targetId);
+    if (displayIndex == -1) return;
+
+    final maxExtent = _scrollController.position.maxScrollExtent;
+    if (maxExtent > 0 && _displayItems.length > 1) {
+      final targetOffset = (displayIndex / (_displayItems.length - 1)) * maxExtent;
+      _scrollController.jumpTo(targetOffset);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _tryScrollToComment(targetId);
+      });
+    }
+  }
+
   @override
   void dispose() {
     _socket?.emit("leaveMovie", widget.movie.id.toString());
     _socket?.disconnect();
     _socket?.dispose();
     _pollTimer?.cancel();
+    _scrollController.dispose();
     _commentController.dispose();
     super.dispose();
   }
@@ -220,6 +259,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
     setState(() => _isLoading = true);
     await _loadComments();
     setState(() => _isLoading = false);
+    _scrollToTargetComment();
   }
 
   Future<void> _loadComments() async {
@@ -241,6 +281,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
         print('Comments count: ${commentsData.length}');
 
         setState(() {
+          _commentKeys.clear();
           _comments = commentsData.map((json) {
             try {
               return Comment.fromJson(json as Map<String, dynamic>);
@@ -342,7 +383,31 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
   Future<void> _toggleLike(Comment comment) async {
     if (comment.id == null) return;
-    final result = await BackendService.toggleLikeComment(comment.id!);
+    final auth = context.read<AuthProvider>();
+    final currentUserId = auth.userId ?? '';
+    final wasLiked = comment.isLikedBy(currentUserId);
+
+    final newLikes = List<String>.from(comment.likes);
+    if (wasLiked) {
+      newLikes.remove(currentUserId);
+    } else {
+      newLikes.add(currentUserId);
+    }
+    final optimisiticComment = comment.copyWith(likes: newLikes);
+
+    setState(() {
+      final idx = _comments.indexWhere((c) => c.id == comment.id);
+      if (idx != -1) {
+        _comments[idx] = optimisiticComment;
+      }
+      _markNeedsRebuild();
+    });
+
+    final result = await BackendService.toggleLikeComment(
+      comment.id!,
+      movieId: widget.movie.id,
+      movieTitle: widget.movie.title,
+    );
     if (result['success'] == true) {
       final data = result['data'];
       if (data is Map<String, dynamic>) {
@@ -355,6 +420,14 @@ class _CommentsScreenState extends State<CommentsScreen> {
           _markNeedsRebuild();
         });
       }
+    } else {
+      setState(() {
+        final idx = _comments.indexWhere((c) => c.id == comment.id);
+        if (idx != -1) {
+          _comments[idx] = comment;
+        }
+        _markNeedsRebuild();
+      });
     }
   }
 
@@ -698,6 +771,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                 : _comments.isEmpty
                     ? _buildEmptyState()
                     : ListView.builder(
+                        controller: _scrollController,
                         reverse: true,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: _displayItems.length,
@@ -741,11 +815,12 @@ class _CommentsScreenState extends State<CommentsScreen> {
     final textColor = isMe ? Colors.white : Theme.of(context).colorScheme.onSurface;
     final timeColor = isMe ? Colors.white60 : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
 
-    final timeText = comment.timestamp.day == DateTime.now().day &&
-            comment.timestamp.month == DateTime.now().month &&
-            comment.timestamp.year == DateTime.now().year
-        ? "${comment.timestamp.hour.toString().padLeft(2, '0')}:${comment.timestamp.minute.toString().padLeft(2, '0')}"
-        : "${comment.timestamp.day.toString().padLeft(2, '0')}/${comment.timestamp.month.toString().padLeft(2, '0')}/${comment.timestamp.year}";
+    DateTime toGmt7(DateTime dt) => dt.toUtc().add(const Duration(hours: 7));
+    final ts = toGmt7(comment.timestamp);
+    final now = toGmt7(DateTime.now());
+    final timeText = ts.day == now.day && ts.month == now.month && ts.year == now.year
+        ? "${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}"
+        : "${ts.day.toString().padLeft(2, '0')}/${ts.month.toString().padLeft(2, '0')}/${ts.year}";
 
     Widget _avatar(double padLeft, double padRight) {
       final hasAvatar = comment.avatarUrl != null && comment.avatarUrl!.isNotEmpty;
@@ -772,7 +847,11 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
     final isHighlighted = _highlightedComments.contains(comment.id);
 
+    if (comment.id != null) {
+      _commentKeys.putIfAbsent(comment.id, () => GlobalKey());
+    }
     Widget commentWidget = GestureDetector(
+      key: comment.id != null ? _commentKeys[comment.id] : null,
       onLongPress: comment.isDeleted ? null : () => _showReplyMenu(comment),
       child: Padding(
         padding: const EdgeInsets.only(
@@ -1034,3 +1113,5 @@ class _CommentsScreenState extends State<CommentsScreen> {
     );
   }
 }
+
+

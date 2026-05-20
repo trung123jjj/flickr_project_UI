@@ -435,12 +435,16 @@ class BackendService {
     }
   }
 
-  static Future<Map<String, dynamic>> toggleLikeComment(String commentId) async {
+  static Future<Map<String, dynamic>> toggleLikeComment(String commentId, {int? movieId, String? movieTitle}) async {
     try {
       final headers = await _getHeaders();
+      final body = <String, dynamic>{};
+      if (movieId != null) body['movieId'] = movieId;
+      if (movieTitle != null) body['movieTitle'] = movieTitle;
       final response = await http.post(
         Uri.parse('$_baseUrl/api/comments/$commentId/like'),
         headers: headers,
+        body: jsonEncode(body),
       );
       return _handleResponse(response);
     } catch (e) {
