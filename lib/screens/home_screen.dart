@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:async';
 import '../models/movie.dart';
 import '../models/genre.dart';
 import '../services/tmdb_service.dart';
 import '../services/backend_service.dart';
+import '../services/secure_storage_service.dart';
+import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -29,6 +32,7 @@ class HomeScreenState extends State<HomeScreen> {
   bool _isSearchLoading = false;
   Timer? _searchDebounce;
   int _unreadCount = 0;
+  IO.Socket? _notificationSocket;
 
   @override
   void initState() {
@@ -37,6 +41,53 @@ class HomeScreenState extends State<HomeScreen> {
     auth.loadUserProfile();
     _loadAllData();
     _loadUnreadCount();
+    _connectNotificationSocket();
+  }
+
+  Future<void> _connectNotificationSocket() async {
+    try {
+      final token = await SecureStorageService.getAuthToken();
+      _notificationSocket = IO.io(
+        ApiConfig.backendBaseUrl,
+        IO.OptionBuilder()
+          .setTransports(['websocket', 'polling'])
+          .enableAutoConnect()
+          .setAuth(<String, dynamic>{'token': token ?? ''})
+          .build(),
+      );
+
+      _notificationSocket?.onConnect((_) {
+        print('[NotifSocket] Connected');
+      });
+
+      _notificationSocket?.on('newNotification', (data) {
+        if (!mounted || data == null) return;
+        print('[NotifSocket] New notification: $data');
+        setState(() => _unreadCount++);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message']?.toString() ?? 'New notification'),
+            backgroundColor: const Color(0xFFE53935),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'View',
+              textColor: Colors.white,
+              onPressed: () async {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                await Navigator.pushNamed(context, '/notifications');
+                _loadUnreadCount();
+              },
+            ),
+          ),
+        );
+      });
+
+      _notificationSocket?.onDisconnect((_) => print('[NotifSocket] Disconnected'));
+      _notificationSocket?.onConnectError((err) => print('[NotifSocket] Connect error: $err'));
+    } catch (e) {
+      print('[NotifSocket] Error: $e');
+    }
   }
 
   Future<void> _loadUnreadCount() async {
@@ -52,6 +103,8 @@ class HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _notificationSocket?.disconnect();
+    _notificationSocket?.dispose();
     _pageController.dispose();
     _searchController.dispose();
     _searchDebounce?.cancel();

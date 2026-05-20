@@ -62,10 +62,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
       }
     }
 
-    if (type == 'reply' && movieId != null) {
+    if ((type == 'reply' || type == 'like') && movieId != null) {
       Navigator.pushNamed(context, '/comments', arguments: {
         'movieId': movieId is int ? movieId : int.tryParse(movieId.toString()) ?? 0,
         'movieTitle': notif['movieTitle']?.toString() ?? '',
+        'commentId': notif['commentId']?.toString(),
       });
     }
   }
@@ -131,9 +132,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           child: Row(
                             children: [
                               Icon(
-                                notif['type'] == 'reply' ? Icons.edit_outlined : Icons.settings_outlined,
+                                notif['type'] == 'reply'
+                                    ? Icons.edit_outlined
+                                    : notif['type'] == 'like'
+                                        ? Icons.favorite
+                                        : Icons.settings_outlined,
                                 size: 16,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                color: notif['type'] == 'like'
+                                    ? const Color(0xFFE53935)
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                               const SizedBox(width: 8),
                               Expanded(

@@ -21,6 +21,12 @@ import 'screens/notification_screen.dart';
 import 'models/movie.dart';
 import 'services/tmdb_service.dart';
 
+final _shakeImages = [
+  'assets/images/processed (1).gif',
+  'assets/images/processed (2).gif',
+  'assets/images/processed (3).gif',
+];
+
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
@@ -150,7 +156,12 @@ class MyApp extends StatelessWidget {
                 } else {
                   return null;
                 }
-                page = CommentsScreen(movie: movie);
+                page = CommentsScreen(
+                  movie: movie,
+                  scrollToCommentId: settings.arguments is Map<String, dynamic>
+                      ? (settings.arguments as Map<String, dynamic>)['commentId'] as String?
+                      : null,
+                );
               } else if (settings.name == '/genreMovies') {
                 final args = settings.arguments as Map<String, dynamic>;
                 page = GenreMoviesScreen(
@@ -212,6 +223,7 @@ class _GlobalShakeHandlerState extends State<GlobalShakeHandler>
   int _shakeCount = 0;
   DateTime _shakeWindowStart = DateTime.now();
   bool _showOverlay = false;
+  String _shakeImage = _shakeImages[0];
 
   @override
   void initState() {
@@ -240,7 +252,10 @@ class _GlobalShakeHandlerState extends State<GlobalShakeHandler>
 
   Future<void> _onShakeDetected() async {
     if (_showOverlay) return;
-    setState(() => _showOverlay = true);
+    setState(() {
+      _showOverlay = true;
+      _shakeImage = _shakeImages[Random().nextInt(_shakeImages.length)];
+    });
 
     await Future.delayed(const Duration(seconds: 2));
 
@@ -295,7 +310,7 @@ class _GlobalShakeHandlerState extends State<GlobalShakeHandler>
               color: Colors.black.withValues(alpha: 0.85),
               child: Center(
                 child: Image.asset(
-                  'assets/images/processed (1).gif',
+                  _shakeImage,
                   width: 320,
                   height: 320,
                 ),
