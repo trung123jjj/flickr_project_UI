@@ -48,7 +48,9 @@ class Comment {
     final userId = json['userId'];
     if (userId is Map<String, dynamic>) {
       username = userId['username'] ?? 'Unknown';
-      avatarUrl = ApiConfig.normalizeUrl(userId['avatar_url']?.toString());
+      final raw = userId['avatar_url']?.toString();
+      avatarUrl = (raw != null && !raw.contains('thenounproject.com'))
+          ? ApiConfig.normalizeUrl(raw) : null;
     } else if (json['username'] != null) {
       username = json['username'];
     }

@@ -829,18 +829,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
         child: CircleAvatar(
           radius: 16,
           backgroundColor: Colors.grey[800],
-          child: hasAvatar
-              ? ClipOval(
-                  child: CachedNetworkImage(
-                    imageUrl: comment.avatarUrl!,
-                    width: 32,
-                    height: 32,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => const Icon(Icons.person, size: 16, color: Colors.white54),
-                    placeholder: (_, __) => const Icon(Icons.person, size: 16, color: Colors.white54),
-                  ),
-                )
-              : const Icon(Icons.person, size: 16, color: Colors.white54),
+          backgroundImage: hasAvatar ? CachedNetworkImageProvider(comment.avatarUrl!) : null,
+          child: hasAvatar ? null : const Icon(Icons.person, size: 22, color: Colors.white70),
         ),
       );
     }

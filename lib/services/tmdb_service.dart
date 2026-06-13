@@ -7,11 +7,10 @@ import '../models/cast.dart';
 import '../config/api_config.dart';
 
 class TmdbService {
-  static const String _baseUrl = 'https://api.themoviedb.org/3';
+  static String get _baseUrl => '${ApiConfig.backendBaseUrl}/api/tmdb';
   static Map<int, String> _genreMap = {};
 
   static Map<String, String> get _headers => {
-    'Authorization': 'Bearer ${ApiConfig.tmdbAccessToken}',
     'Content-Type': 'application/json',
   };
 

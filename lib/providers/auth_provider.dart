@@ -63,7 +63,7 @@ class AuthProvider extends ChangeNotifier {
         if (refreshToken != null) await SecureStorageService.saveRefreshToken(refreshToken);
         if (userId != null) await SecureStorageService.saveUserId(userId);
         if (role != null) await SecureStorageService.saveUserRole(role);
-        if (avatarUrl != null && avatarUrl.isNotEmpty) {
+        if (avatarUrl != null && avatarUrl.isNotEmpty && !avatarUrl.contains('thenounproject.com')) {
           final normalized = ApiConfig.normalizeUrl(avatarUrl);
           await SecureStorageService.saveUserAvatar(normalized);
           _avatarUrl = normalized;
@@ -119,9 +119,10 @@ class AuthProvider extends ChangeNotifier {
       final result = await BackendService.getUserProfile();
       if (result['success'] == true && result['data'] != null) {
         final data = result['data'];
-        final rawUrl = data['avatar_url']?.toString() ?? '';
+        final raw = data['avatar_url']?.toString() ?? '';
         final userRole = data['role']?.toString();
-        _avatarUrl = ApiConfig.normalizeUrl(rawUrl);
+        _avatarUrl = (raw.isNotEmpty && !raw.contains('thenounproject.com'))
+            ? ApiConfig.normalizeUrl(raw) : null;
         if (userRole != null) {
           _role = userRole;
           await SecureStorageService.saveUserRole(userRole);
