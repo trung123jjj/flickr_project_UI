@@ -98,7 +98,7 @@ flickr_project/
 ### Prerequisites
 - Flutter SDK >= 3.11
 - Dart >= 3.11
-- A running instance of the [backend server](https://github.com/anomalyco/flickr_project_Backend)
+- A running instance of the [backend server](https://github.com/trung123jjj/flickr_project_Backend)
 - A TMDb API key (free registration at [themoviedb.org](https://www.themoviedb.org/))
 
 ### Steps
